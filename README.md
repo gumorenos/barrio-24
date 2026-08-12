@@ -2,7 +2,9 @@
 
 Plataforma pública y gratuita para preparación, coordinación comunitaria y respuesta inicial ante sismos en Perú.
 
-> Estado: planificación inicial — 11 de agosto de 2026
+> Estado: Fase 0 en implementación — 12 de agosto de 2026
+
+La rama `feature/00-foundation` ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. Todavía no existe API, no se almacenan datos reales y ningún módulo operativo está habilitado.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 
@@ -487,12 +489,10 @@ SEIDAS podrá evaluarse en el futuro mediante una integración oficial y documen
 
 ## Próximo paso
 
-La siguiente tarea debe ser la **Fase 0**: cerrar decisiones de producto y crear el scaffold mínimo de la PWA offline, sin implementar aún todos los módulos. El primer hito verificable será una pantalla funcional que:
+El siguiente paso, después de integrar esta rama, será la **Fase 2 — Tarjeta Médica Offline**. La Fase 0 deja un hito verificable:
 
 1. se instala como PWA;
 2. muestra claramente si está offline;
 3. guarda datos localmente;
 4. conserva esos datos al cerrar y reabrir;
 5. tiene una cola de sincronización demostrable con datos sintéticos.
-
-
