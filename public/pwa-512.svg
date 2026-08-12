@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Barrio 24</title>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M125 248 256 133l131 115v147H125z" fill="#f4f7fb"/>
+  <path d="M197 395v-94h118v94" fill="#2f80ed"/>
+  <path d="m256 189 21 43 49 8-35 34 8 49-43-23-43 23 8-49-35-34 49-8z" fill="#f2c94c"/>
+</svg>
+
