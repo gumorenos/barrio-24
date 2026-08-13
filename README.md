@@ -2,7 +2,9 @@
 
 Plataforma pública y gratuita para preparación, coordinación comunitaria y respuesta inicial ante sismos en Perú.
 
-> Estado: planificación inicial — 11 de agosto de 2026
+> Estado: Fase 2 inicial en implementación — 13 de agosto de 2026
+
+La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 inicial añade captura local de Reporte 60 segundos. Existe un esqueleto de Worker en `api/`, pero la aplicación todavía no está conectada y no hay sincronización remota.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 
@@ -37,7 +39,7 @@ Primera versión:
 - Vista de emergencia de alto contraste.
 - PIN local.
 - Impresión y exportación cifrada.
-- QR opcional con únicamente los campos que el titular decida compartir.
+- QR: fuera de la primera implementación; se evaluará después de validar el flujo de vista de emergencia.
 
 Principio de privacidad: los datos médicos no se envían al servidor por defecto. Se guardan cifrados en el dispositivo. La tarjeta no reemplaza una evaluación médica ni una historia clínica.
 
@@ -57,7 +59,7 @@ Categorías iniciales:
 - Necesidad de refugio.
 - Necesidad de alimentos o medicinas.
 
-El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline.
+El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline. La primera implementación local ya permite elegir categoría, nivel de gravedad observado y una zona aproximada opcional. Por ahora cada reporte permanece en IndexedDB y se marca explícitamente como local; todavía no se envía ni se publica.
 
 Los reportes públicos tendrán ubicación aproximada, fecha, estado y nivel de verificación. No se expondrán coordenadas exactas de personas ni se presentarán observaciones ciudadanas como información oficial.
 
@@ -234,6 +236,19 @@ Cada operación que no pudo enviarse se guarda con:
 
 El servidor debe aceptar reintentos sin duplicar operaciones. La aplicación no dependerá exclusivamente de Background Sync, porque su ejecución es controlada por el navegador y el sistema operativo. También intentará sincronizar al abrirse, al detectar conectividad y mediante una acción manual.
 
+### Reporte 60 segundos local
+
+La captura local actual:
+
+- no exige cuenta ni conexión;
+- no permite texto libre, fotografías ni publicación pública;
+- guarda categoría, gravedad observada, fecha y estado local;
+- puede guardar una celda geográfica aproximada de alrededor de 1 km, si el usuario autoriza ubicación;
+- nunca guarda la coordenada exacta;
+- no debe presentarse como reporte recibido, verificado o enviado a una autoridad.
+
+La siguiente etapa será diseñar y revisar el contrato del API, idempotencia, rate limiting, moderación y retención antes de conectar cualquier sincronización.
+
 ## Escalabilidad y modo de emergencia
 
 El tráfico se separará en tres clases:
@@ -371,16 +386,22 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Vista de emergencia.
 - Impresión.
 - Exportación cifrada.
-- QR opcional.
+- Importación de respaldos cifrados.
 - Pruebas en Android, iOS y escritorio.
 
-### Fase 3 — Reporte 60 segundos
+### Fase 3 — Reporte 60 segundos local
 
-**Duración:** 7–12 días.
+**Duración:** 1–3 días para el núcleo local; el backend requiere una etapa separada.
 
 - Formulario de categorías.
 - Ubicación aproximada opcional.
 - Guardado offline.
+- Estado explícito `local-only`.
+- Sin texto libre, fotografías ni publicación en esta etapa.
+
+### Fase 4 — Reporte 60 segundos conectado
+
+- Diseñar y revisar el contrato del API.
 - API Worker/Hono.
 - D1.
 - Queue.
@@ -390,7 +411,7 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Moderación básica.
 - Vista pública agregada.
 
-### Fase 4 — Ruta Alta piloto
+### Fase 5 — Ruta Alta piloto
 
 **Duración:** 10–20 días.
 
@@ -402,7 +423,7 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Mostrar versión y fuente.
 - Probar rutas físicamente si es posible.
 
-### Fase 5 — Barrio 24
+### Fase 6 — Barrio 24
 
 **Duración:** 15–25 días.
 
@@ -485,14 +506,12 @@ No se medirá solo el número de visitas.
 
 SEIDAS podrá evaluarse en el futuro mediante una integración oficial y documentada, pero ninguna fase inicial depende de él.
 
-## Próximo paso
+## Estado de esta rama
 
-La siguiente tarea debe ser la **Fase 0**: cerrar decisiones de producto y crear el scaffold mínimo de la PWA offline, sin implementar aún todos los módulos. El primer hito verificable será una pantalla funcional que:
+Esta rama deja implementado el núcleo local de Reporte 60 segundos. El siguiente paso no es simular una API: requiere revisión en dispositivos, definición del contrato de sincronización y preparación de un entorno de staging. La Fase 0 dejó estos hitos verificables:
 
 1. se instala como PWA;
 2. muestra claramente si está offline;
 3. guarda datos localmente;
 4. conserva esos datos al cerrar y reabrir;
 5. tiene una cola de sincronización demostrable con datos sintéticos.
-
-

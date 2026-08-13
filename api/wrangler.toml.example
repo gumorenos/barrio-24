@@ -1,0 +1,11 @@
+name = "barrio24-reports-api-staging"
+main = "src/index.ts"
+compatibility_date = "2026-08-13"
+
+[vars]
+ALLOWED_ORIGIN = "https://REPLACE-WITH-PAGES-PREVIEW.example"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "barrio24-reports-staging"
+database_id = "REPLACE_WITH_STAGING_DATABASE_ID"
