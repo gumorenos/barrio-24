@@ -49,6 +49,22 @@ El servidor no debe aceptar nombre, teléfono, DNI, texto libre, fotografías ni
 
 El cliente impone un timeout nominal de 11,5 segundos por solicitud para mantener margen frente al scheduling del navegador y no superar 12 segundos observados externamente. Ante `429`, `503`, timeout o error de red detiene la ráfaga para no empeorar el abuso o la saturación; el evento que falló y los siguientes permanecen locales para un reintento manual. La respuesta `Retry-After`, cuando existe, se muestra al usuario.
 
+## Consulta operativa de staging
+
+Existe una ruta de lectura interna para inspeccionar el estado de los reportes recibidos sin crear todavía un feed público ni una pantalla de moderación:
+
+```text
+GET /v1/ops/reports?status=unverified&limit=50&cursor=...
+Authorization: Bearer <REPORTS_OPERATIONS_TOKEN>
+```
+
+- El secreto se configura fuera de Git mediante un secreto del Worker. Si no existe, la ruta queda desactivada y responde `404`.
+- La ruta no habilita CORS y no se integra en la PWA.
+- Devuelve únicamente los campos mínimos ya aceptados por el contrato ciudadano: `event_id`, categoría, gravedad, celda aproximada, fechas y estado.
+- `limit` está acotado a 100 y la paginación usa un cursor estable por `received_at` y `event_id`.
+- Los errores de autenticación no revelan datos; los fallos de D1 responden `503`.
+- No hay mutaciones operativas. Los cambios a `verified`, `duplicate` o `resolved` quedan pendientes de definir con roles, auditoría y autenticación fuerte.
+
 ## Estado del reporte
 
 Los estados deben mantenerse separados:

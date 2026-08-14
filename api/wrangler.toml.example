@@ -5,6 +5,9 @@ compatibility_date = "2026-08-13"
 [vars]
 ALLOWED_ORIGIN = "https://REPLACE-WITH-PAGES-PREVIEW.example"
 
+# Configure the read-only operations secret out of band; do not add it here:
+# wrangler secret put REPORTS_OPERATIONS_TOKEN --config /path/to/staging-wrangler.toml
+
 [[d1_databases]]
 binding = "DB"
 database_name = "barrio24-reports-staging"

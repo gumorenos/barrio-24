@@ -6,6 +6,11 @@ const EVENT_ID = '00000000-0000-4000-8000-000000000001'
 
 type StoredReport = {
   event_id: string
+  schema_version: number
+  category: string
+  severity: string
+  location_cell: string | null
+  observed_at: string
   status: string
   received_at: number
 }
@@ -31,12 +36,42 @@ class MockD1Statement {
     return null
   }
 
+  async all<T extends Record<string, unknown>>(): Promise<{ results: T[] }> {
+    if (!this.query.includes('SELECT event_id, schema_version, category, severity')) {
+      return { results: [] }
+    }
+
+    let valueIndex = 0
+    const status = this.query.includes('status = ?') ? String(this.values[valueIndex++]) : null
+    let cursorReceivedAt: number | null = null
+    let cursorEventId: string | null = null
+    if (this.query.includes('received_at < ?')) {
+      cursorReceivedAt = Number(this.values[valueIndex++])
+      valueIndex += 1
+      cursorEventId = String(this.values[valueIndex++])
+    }
+    const limit = Number(this.values[valueIndex])
+    const reports = [...this.database.reports.values()]
+      .filter((report) => status === null || report.status === status)
+      .filter((report) => cursorReceivedAt === null
+        || report.received_at < cursorReceivedAt
+        || (report.received_at === cursorReceivedAt && report.event_id < cursorEventId!))
+      .sort((left, right) => right.received_at - left.received_at || right.event_id.localeCompare(left.event_id))
+      .slice(0, limit)
+    return { results: reports as unknown as T[] }
+  }
+
   async run(): Promise<{ success: boolean; meta?: { changes?: number } }> {
     if (this.query.includes('INSERT OR IGNORE INTO reports')) {
       const eventId = String(this.values[0])
       if (this.database.reports.has(eventId)) return { success: true, meta: { changes: 0 } }
       this.database.reports.set(eventId, {
         event_id: eventId,
+        schema_version: Number(this.values[1]),
+        category: String(this.values[2]),
+        severity: String(this.values[3]),
+        location_cell: this.values[4] as string | null,
+        observed_at: String(this.values[5]),
         status: 'unverified',
         received_at: Number(this.values[6]),
       })
@@ -66,6 +101,7 @@ function createEnv(rateLimitSuccess = true) {
   return {
     DB: new MockD1Database(),
     ALLOWED_ORIGIN,
+    REPORTS_OPERATIONS_TOKEN: undefined as string | undefined,
     REPORTS_RATE_LIMITER: {
       limit: async () => ({ success: rateLimitSuccess }),
     },
@@ -199,6 +235,7 @@ describe('Worker de Reporte 60 segundos', () => {
         prepare: () => ({
           bind() { return this },
           async first() { return null },
+          async all() { return { results: [] } },
           async run() { return { success: false } },
         }),
       },
@@ -213,12 +250,101 @@ describe('Worker de Reporte 60 segundos', () => {
 
   it('ejecuta la limpieza de retención sobre reportes antiguos', async () => {
     const env = createEnv()
-    env.DB.reports.set('old', { event_id: 'old', status: 'unverified', received_at: 1 })
-    env.DB.reports.set('new', { event_id: 'new', status: 'unverified', received_at: Date.now() })
+    env.DB.reports.set('old', {
+      event_id: 'old',
+      schema_version: 1,
+      category: 'blocked-street',
+      severity: 'attention',
+      location_cell: null,
+      observed_at: '2026-08-14T00:00:00.000Z',
+      status: 'unverified',
+      received_at: 1,
+    })
+    env.DB.reports.set('new', {
+      event_id: 'new',
+      schema_version: 1,
+      category: 'blocked-street',
+      severity: 'attention',
+      location_cell: null,
+      observed_at: '2026-08-14T00:00:00.000Z',
+      status: 'unverified',
+      received_at: Date.now(),
+    })
 
     await worker.scheduled?.({ scheduledTime: Date.now() }, env)
 
     expect(env.DB.reports.has('old')).toBe(false)
     expect(env.DB.reports.has('new')).toBe(true)
+  })
+
+  it('protege la consulta operativa y pagina por cursor sin habilitar CORS', async () => {
+    const env = createEnv()
+    env.REPORTS_OPERATIONS_TOKEN = 'test-operations-token'
+    env.DB.reports.set('first', {
+      event_id: '00000000-0000-4000-8000-000000000010',
+      schema_version: 1,
+      category: 'blocked-street',
+      severity: 'attention',
+      location_cell: '-12.10,-77.03',
+      observed_at: '2026-08-14T00:00:00.000Z',
+      status: 'unverified',
+      received_at: 300,
+    })
+    env.DB.reports.set('second', {
+      event_id: '00000000-0000-4000-8000-000000000011',
+      schema_version: 1,
+      category: 'water-shortage',
+      severity: 'observed',
+      location_cell: null,
+      observed_at: '2026-08-14T00:00:01.000Z',
+      status: 'verified',
+      received_at: 200,
+    })
+    env.DB.reports.set('third', {
+      event_id: '00000000-0000-4000-8000-000000000012',
+      schema_version: 1,
+      category: 'water-shortage',
+      severity: 'observed',
+      location_cell: null,
+      observed_at: '2026-08-14T00:00:02.000Z',
+      status: 'unverified',
+      received_at: 100,
+    })
+
+    const unauthorized = await worker.fetch(request('/v1/ops/reports?status=unverified'), env)
+    expect(unauthorized.status).toBe(401)
+    expect(unauthorized.headers.get('access-control-allow-origin')).toBeNull()
+
+    const firstPage = await worker.fetch(request('/v1/ops/reports?status=unverified&limit=1', {
+      headers: { Authorization: 'Bearer test-operations-token' },
+    }), env)
+    expect(firstPage.status).toBe(200)
+    const firstBody = await firstPage.json() as {
+      reports: Array<Record<string, unknown>>
+      next_cursor: string | null
+    }
+    expect(firstBody.reports).toHaveLength(1)
+    expect(firstBody.reports[0]).toMatchObject({
+      event_id: '00000000-0000-4000-8000-000000000010',
+      status: 'unverified',
+    })
+    expect(firstBody.next_cursor).toBe('300:00000000-0000-4000-8000-000000000010')
+
+    const secondPage = await worker.fetch(request(`/v1/ops/reports?status=unverified&limit=1&cursor=${firstBody.next_cursor}`, {
+      headers: { Authorization: 'Bearer test-operations-token' },
+    }), env)
+    expect(secondPage.status).toBe(200)
+    await expect(secondPage.json()).resolves.toMatchObject({
+      reports: [{ event_id: '00000000-0000-4000-8000-000000000012' }],
+      next_cursor: null,
+    })
+
+    const invalidStatus = await worker.fetch(request('/v1/ops/reports?status=not-a-status', {
+      headers: { Authorization: 'Bearer test-operations-token' },
+    }), env)
+    expect(invalidStatus.status).toBe(400)
+
+    const missingSecret = await worker.fetch(request('/v1/ops/reports'), createEnv())
+    expect(missingSecret.status).toBe(404)
   })
 })

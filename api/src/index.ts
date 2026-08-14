@@ -19,6 +19,7 @@ const RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement
   first<T extends Record<string, unknown>>(): Promise<T | null>
+  all<T extends Record<string, unknown>>(): Promise<{ results: T[] }>
   run(): Promise<{ success: boolean; meta?: { changes?: number } }>
 }
 
@@ -34,6 +35,7 @@ interface Env {
   DB: D1Database
   ALLOWED_ORIGIN?: string
   REPORTS_RATE_LIMITER?: RateLimit
+  REPORTS_OPERATIONS_TOKEN?: string
 }
 
 interface ReportPayload {
@@ -49,6 +51,29 @@ interface StoredReport extends Record<string, unknown> {
   event_id: string
   status: string
 }
+
+interface OperationalReport extends Record<string, unknown> {
+  event_id: string
+  schema_version: number
+  category: string
+  severity: string
+  location_cell: string | null
+  observed_at: string
+  received_at: number
+  status: string
+}
+
+const OPERATIONAL_STATUSES = new Set([
+  'received',
+  'unverified',
+  'duplicate',
+  'verified',
+  'resolved',
+  'expired',
+])
+const DEFAULT_OPERATIONAL_LIMIT = 50
+const MAX_OPERATIONAL_LIMIT = 100
+const OPERATIONAL_CURSOR_PATTERN = /^(\d+):([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
 function headersFor(request: Request, env: Env): Headers {
   const headers = new Headers({
@@ -66,6 +91,18 @@ function headersFor(request: Request, env: Env): Headers {
 
 function json(request: Request, env: Env, data: unknown, status = 200, extraHeaders?: HeadersInit): Response {
   const headers = headersFor(request, env)
+  if (extraHeaders) {
+    new Headers(extraHeaders).forEach((value, key) => headers.set(key, value))
+  }
+  return new Response(JSON.stringify(data), { status, headers })
+}
+
+function operationsJson(data: unknown, status = 200, extraHeaders?: HeadersInit): Response {
+  const headers = new Headers({
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+  })
   if (extraHeaders) {
     new Headers(extraHeaders).forEach((value, key) => headers.set(key, value))
   }
@@ -183,6 +220,93 @@ async function createReport(request: Request, env: Env): Promise<Response> {
   }
 }
 
+function parseOperationalLimit(value: string | null): number | null {
+  if (value === null) return DEFAULT_OPERATIONAL_LIMIT
+  if (!/^\d+$/.test(value)) return null
+  const limit = Number(value)
+  return Number.isSafeInteger(limit) && limit > 0 && limit <= MAX_OPERATIONAL_LIMIT ? limit : null
+}
+
+function parseOperationalCursor(value: string | null): { receivedAt: number; eventId: string } | null | undefined {
+  if (value === null) return null
+  const match = OPERATIONAL_CURSOR_PATTERN.exec(value)
+  if (!match) return undefined
+  const receivedAt = Number(match[1])
+  if (!Number.isSafeInteger(receivedAt)) return undefined
+  return { receivedAt, eventId: match[2] }
+}
+
+function operationalReportFromRow(row: OperationalReport): OperationalReport {
+  return {
+    event_id: row.event_id,
+    schema_version: row.schema_version,
+    category: row.category,
+    severity: row.severity,
+    location_cell: row.location_cell ?? null,
+    observed_at: row.observed_at,
+    received_at: row.received_at,
+    status: row.status,
+  }
+}
+
+function operationalCursorFor(report: OperationalReport): string {
+  return `${report.received_at}:${report.event_id}`
+}
+
+async function listOperationalReports(request: Request, env: Env): Promise<Response> {
+  const configuredToken = env.REPORTS_OPERATIONS_TOKEN?.trim()
+  if (!configuredToken) return operationsJson({ error: 'not_found' }, 404)
+
+  const authorization = request.headers.get('Authorization') ?? ''
+  if (authorization !== `Bearer ${configuredToken}`) {
+    return operationsJson({ error: 'unauthorized' }, 401, { 'www-authenticate': 'Bearer' })
+  }
+
+  const url = new URL(request.url)
+  const status = url.searchParams.get('status')
+  if (status !== null && !OPERATIONAL_STATUSES.has(status)) {
+    return operationsJson({ error: 'invalid_status' }, 400)
+  }
+
+  const limit = parseOperationalLimit(url.searchParams.get('limit'))
+  if (limit === null) return operationsJson({ error: 'invalid_limit' }, 400)
+
+  const cursor = parseOperationalCursor(url.searchParams.get('cursor'))
+  if (cursor === undefined) return operationsJson({ error: 'invalid_cursor' }, 400)
+
+  const conditions: string[] = []
+  const values: unknown[] = []
+  if (status) {
+    conditions.push('status = ?')
+    values.push(status)
+  }
+  if (cursor) {
+    conditions.push('(received_at < ? OR (received_at = ? AND event_id < ?))')
+    values.push(cursor.receivedAt, cursor.receivedAt, cursor.eventId)
+  }
+
+  const query = `SELECT event_id, schema_version, category, severity, location_cell,
+      observed_at, received_at, status
+    FROM reports
+    ${conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''}
+    ORDER BY received_at DESC, event_id DESC
+    LIMIT ?`
+
+  try {
+    const result = await env.DB.prepare(query).bind(...values, limit + 1).all<OperationalReport>()
+    const reports = result.results.map(operationalReportFromRow)
+    const hasMore = reports.length > limit
+    if (hasMore) reports.pop()
+
+    return operationsJson({
+      reports,
+      next_cursor: hasMore && reports.length > 0 ? operationalCursorFor(reports[reports.length - 1]) : null,
+    })
+  } catch {
+    return operationsJson({ error: 'storage_unavailable' }, 503, { 'retry-after': '60' })
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (!isAllowedOrigin(request, env)) return json(request, env, { error: 'origin_not_allowed' }, 403)
@@ -198,6 +322,10 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/api/health') {
       return json(request, env, { ok: true, service: 'barrio24-reports-api', version: 1 })
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/ops/reports') {
+      return listOperationalReports(request, env)
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reports') {
