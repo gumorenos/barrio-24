@@ -85,6 +85,24 @@ describe('Sincronización de reportes', () => {
     expect(requestFetch).toHaveBeenCalledTimes(1)
   })
 
+  it('identifica una respuesta HTTP rechazada sin confundirla con una caída de red', async () => {
+    const requestFetch = vi.fn(async () => new Response('{}', { status: 400 }))
+
+    const summary = await syncLocalRapidReports(
+      'https://api.example.test',
+      requestFetch as unknown as typeof fetch,
+    )
+
+    expect(summary).toMatchObject({
+      attempted: 2,
+      sent: 0,
+      failed: 2,
+      failure: 'rejected',
+    })
+    expect(summary.message).toContain('no fueron aceptados')
+    expect(requestFetch).toHaveBeenCalledTimes(2)
+  })
+
   it('evita que un API que no responde deje la sincronización colgada', async () => {
     const requestFetch = vi.fn(() => new Promise<Response>(() => {}))
 

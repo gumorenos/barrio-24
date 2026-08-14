@@ -94,6 +94,9 @@ function syncMessage(
   if (failure === 'network') {
     return `${sentText}; no se pudo contactar al API. Los demás siguen guardados para reintento.`
   }
+  if (failure === 'rejected') {
+    return `${sentText}; ${failed} no fue${failed === 1 ? '' : 'ron'} aceptado${failed === 1 ? '' : 's'} por el API. Quedó${failed === 1 ? '' : 'aron'} guardado${failed === 1 ? '' : 's'} para revisión.`
+  }
   if (failed > 0) {
     return `${sentText}; ${failed} quedó${failed === 1 ? '' : 'aron'} guardado${failed === 1 ? '' : 's'} para reintento.`
   }
@@ -167,6 +170,7 @@ export async function syncLocalRapidReports(
           failure = 'service-unavailable'
           break
         }
+        failure = 'rejected'
       }
     } catch (caught) {
       await db.rapidReports.update(report.id, { status: 'sync-failed' })
