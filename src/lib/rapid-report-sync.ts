@@ -2,7 +2,8 @@ import { db, getClientId } from './db'
 import type { RapidReport } from './rapid-report'
 
 export const REPORTS_API_URL = (import.meta.env.VITE_REPORTS_API_URL ?? '').trim().replace(/\/+$/, '')
-export const RAPID_REPORT_REQUEST_TIMEOUT_MS = 12_000
+// Leave a small scheduling margin so the externally observed timeout stays below 12 s.
+export const RAPID_REPORT_REQUEST_TIMEOUT_MS = 11_500
 
 export type RapidReportSyncFailure =
   | 'rate-limited'

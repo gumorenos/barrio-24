@@ -17,7 +17,7 @@ El formulario permite:
 - exportar los reportes locales como JSON;
 - borrar un reporte o todas las copias locales.
 
-La sincronización tiene un timeout de 12 segundos por solicitud. Si el API limita, no está disponible o no responde, se detiene la ráfaga y se dejan los reportes locales para reintento; la interfaz no los presenta como enviados.
+La sincronización tiene un timeout nominal de 11,5 segundos por solicitud para dejar margen al navegador y mantenerse por debajo de 12 segundos observados externamente. Si el API limita, no está disponible o no responde, se detiene la ráfaga y se dejan los reportes locales para reintento; la interfaz no los presenta como enviados.
 
 No permite todavía:
 

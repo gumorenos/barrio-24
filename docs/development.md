@@ -54,7 +54,7 @@ El Worker y D1 de staging ya existen y fueron validados con smoke tests remotos.
 
 Los reportes nuevos se guardan como `unverified` en el API. La retención inicial es de 30 días y el Worker de staging tiene una tarea diaria de eliminación. Chromium validó la sincronización y el propietario validó manualmente la geolocalización en Arc Search para iPhone; todavía falta completar QA físico de sincronización y pruebas de abuso antes de usuarios reales.
 
-Cada solicitud de sincronización tiene un timeout de 12 segundos. Ante rate limit, indisponibilidad o error de red, el cliente corta la ráfaga y conserva los eventos para reintento manual.
+Cada solicitud de sincronización tiene un timeout nominal de 11,5 segundos, dejando margen para el scheduling del navegador y manteniendo el límite observado por debajo de 12 segundos. Ante rate limit, indisponibilidad o error de red, el cliente corta la ráfaga y conserva los eventos para reintento manual.
 
 El preview de staging publica cabeceras básicas de privacidad, impide framing y lleva `noindex`/`robots.txt` para no aparecer en buscadores. Antes de cualquier despliegue de producción hay que revisar explícitamente esa política y retirar el bloqueo de indexación si corresponde.
 
