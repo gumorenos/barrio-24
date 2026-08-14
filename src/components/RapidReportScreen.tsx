@@ -269,6 +269,16 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
         {error && <Notice tone="warning"><AlertTriangle size={16} aria-hidden="true" /> {error}</Notice>}
         {message && <Notice tone="success"><Check size={16} aria-hidden="true" /> {message}</Notice>}
 
+        <details className="rapid-privacy-details">
+          <summary>Qué se guarda y qué se envía</summary>
+          <ul>
+            <li>En este dispositivo se conservan categoría, gravedad, fecha, estado y una celda de ubicación aproximada si la autorizas.</li>
+            <li>Las coordenadas exactas se descartan antes de guardar el reporte y no forman parte del payload.</li>
+            <li>{REPORTS_API_URL ? 'Al tocar “Sincronizar guardados” se envía el reporte mínimo al API de prueba; queda como recibido, no verificado.' : 'Sin API configurada, ningún reporte sale del dispositivo.'}</li>
+            <li>Borrar la copia local no elimina un registro que ya haya llegado al staging.</li>
+          </ul>
+        </details>
+
         <form className="rapid-form" onSubmit={(event) => void handleSubmit(event)}>
           <section className="rapid-form-section" aria-labelledby="rapid-category-title">
             <div className="form-section-heading">

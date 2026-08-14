@@ -205,6 +205,10 @@ h2 { color: var(--ink); font-size: clamp(1.7rem, 3vw, 2.3rem); letter-spacing: -
 .rapid-notice strong { color: var(--ink); }
 .rapid-notice.warning { background: #fff5df; border-color: #d09118; color: #795000; }
 .rapid-notice.success { background: #e4f5ec; border-color: var(--green); color: #1d6a49; }
+.rapid-privacy-details { background: #f8fafc; border: 1px solid #e1e8ee; border-radius: 12px; color: var(--muted); font-size: 12px; line-height: 1.55; margin: 14px 0 18px; padding: 12px 14px; }
+.rapid-privacy-details summary { color: var(--ink); cursor: pointer; font-weight: 750; }
+.rapid-privacy-details ul { margin: 10px 0 0; padding-left: 19px; }
+.rapid-privacy-details li + li { margin-top: 5px; }
 .rapid-form { display: grid; gap: 18px; }
 .rapid-form-section, .rapid-recent { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: clamp(22px, 4vw, 34px); }
 .rapid-category-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
