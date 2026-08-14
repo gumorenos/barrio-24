@@ -111,7 +111,7 @@ function parseReportPayload(value: unknown): ReportPayload | null {
 
 function isAllowedOrigin(request: Request, env: Env): boolean {
   const origin = request.headers.get('Origin')
-  return !origin || !env.ALLOWED_ORIGIN || origin === env.ALLOWED_ORIGIN
+  return !origin || Boolean(env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN)
 }
 
 function rateLimitKey(request: Request): string {
@@ -120,10 +120,14 @@ function rateLimitKey(request: Request): string {
   return `ip:${request.headers.get('CF-Connecting-IP') ?? 'anonymous'}`
 }
 
-async function isRateLimited(request: Request, env: Env): Promise<boolean> {
-  if (!env.REPORTS_RATE_LIMITER) return false
-  const result = await env.REPORTS_RATE_LIMITER.limit({ key: rateLimitKey(request) })
-  return !result.success
+async function checkRateLimit(request: Request, env: Env): Promise<{ limited: boolean; unavailable: boolean }> {
+  if (!env.REPORTS_RATE_LIMITER) return { limited: false, unavailable: false }
+  try {
+    const result = await env.REPORTS_RATE_LIMITER.limit({ key: rateLimitKey(request) })
+    return { limited: !result.success, unavailable: false }
+  } catch {
+    return { limited: false, unavailable: true }
+  }
 }
 
 async function createReport(request: Request, env: Env): Promise<Response> {
@@ -197,7 +201,11 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reports') {
-      if (await isRateLimited(request, env)) {
+      const rateLimit = await checkRateLimit(request, env)
+      if (rateLimit.unavailable) {
+        return json(request, env, { error: 'rate_limit_unavailable' }, 503, { 'retry-after': '60' })
+      }
+      if (rateLimit.limited) {
         return json(request, env, { error: 'rate_limited' }, 429, { 'retry-after': '60' })
       }
       return createReport(request, env)

@@ -2,9 +2,9 @@
 
 Plataforma pública y gratuita para preparación, coordinación comunitaria y respuesta inicial ante sismos en Perú.
 
-> Estado: Fase 2 inicial en implementación — 13 de agosto de 2026
+> Estado: Fase 2 conectada en staging — 14 de agosto de 2026
 
-La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 inicial añade captura de Reporte 60 segundos. Existe un Worker/D1 de staging; la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada, pero no hay feed público ni moderación operativa.
+La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 añade captura y sincronización manual de Reporte 60 segundos contra staging. Los reportes pueden exportarse o borrarse localmente, pero no hay feed público ni moderación operativa.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 
@@ -245,9 +245,10 @@ La captura local actual:
 - guarda categoría, gravedad observada, fecha y estado local;
 - puede guardar una celda geográfica aproximada de alrededor de 1 km, si el usuario autoriza ubicación;
 - nunca guarda la coordenada exacta;
+- permite exportar reportes locales en JSON y borrar sus copias del dispositivo;
 - no debe presentarse como reporte recibido, verificado o enviado a una autoridad.
 
-El contrato mínimo, la idempotencia, el límite inicial y la retención de staging ya están implementados. Antes de usuarios reales faltan moderación, política de exposición pública, QA físico y una revisión de seguridad/privacidad.
+El contrato mínimo, la idempotencia, el límite inicial y la retención de staging ya están implementados. Chromium validó el flujo remoto y la geolocalización fue validada manualmente en Arc Search para iPhone. Antes de usuarios reales faltan moderación, pruebas de carga/abuso, QA físico de sincronización y una revisión de seguridad/privacidad.
 
 ## Escalabilidad y modo de emergencia
 
@@ -508,7 +509,7 @@ SEIDAS podrá evaluarse en el futuro mediante una integración oficial y documen
 
 ## Estado de esta rama
 
-Esta rama deja implementados el núcleo local de Reporte 60 segundos y el primer flujo de sincronización manual contra staging. El siguiente paso requiere QA de integración, revisión en dispositivos y definición de moderación antes de cualquier uso real. La Fase 0 dejó estos hitos verificables:
+Esta rama deja implementados el núcleo local de Reporte 60 segundos, el primer flujo de sincronización manual contra staging y controles de exportación/borrado local. El siguiente paso requiere pruebas de carga/abuso, QA físico de sincronización y definición de moderación antes de cualquier uso real. La Fase 0 dejó estos hitos verificables:
 
 1. se instala como PWA;
 2. muestra claramente si está offline;

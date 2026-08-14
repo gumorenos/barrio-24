@@ -2,7 +2,7 @@
 
 ## Alcance actual
 
-El proyecto está en la Fase 2 inicial: scaffold de PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. No hay feed público ni moderación operativa; los reportes remotos permanecen `unverified`. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+El proyecto está en la Fase 2 conectada de staging: PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. Los reportes remotos permanecen `unverified`; no hay feed público ni moderación operativa. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
 
 ## Reglas
 
@@ -14,6 +14,7 @@ El proyecto está en la Fase 2 inicial: scaffold de PWA offline-first, Tarjeta M
 - No añadir una aplicación nativa independiente mientras la PWA sea suficiente.
 - Mantener la operación offline como requisito funcional, no como mejora futura.
 - Mantener una separación visible entre “guardado local” y “enviado/confirmado por servidor”; no simular confirmaciones remotas.
+- Mantener exportación y borrado explícitos para los reportes locales; borrar la copia local no implica borrar un registro remoto.
 - Evitar dependencias innecesarias y componentes visuales genéricos.
 - No guardar coordenadas exactas en los reportes; solo una celda geográfica aproximada cuando el usuario la autorice.
 - Ejecutar lint, typecheck, tests y build antes de proponer un commit.

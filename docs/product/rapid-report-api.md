@@ -11,6 +11,7 @@ Este documento describe el contrato mínimo implementado en el Worker de staging
 - El contenido público debe ser agregado o redondeado nuevamente según riesgo y densidad.
 - Ningún reporte ciudadano debe presentarse como información oficial.
 - El Rate Limiting nativo de Cloudflare es una primera barrera de abuso, pero no debe tratarse como una cuota global estricta.
+- Los controles locales de exportación y borrado no modifican registros remotos; el servidor conserva su propia política de retención.
 
 ## Flujo propuesto
 
@@ -44,7 +45,7 @@ El servidor no debe aceptar nombre, teléfono, DNI, texto libre, fotografías ni
 - `400 Bad Request`: esquema o categoría inválida.
 - `409 Conflict`: el mismo `event_id` ya fue procesado; debe ser una respuesta segura para reintentos.
 - `429 Too Many Requests`: límite temporal alcanzado; el cliente conserva el evento local.
-- `503 Service Unavailable`: el cliente conserva el evento local y reintenta con backoff.
+- `503 Service Unavailable`: almacenamiento o Rate Limiting no disponible; el cliente conserva el evento local y reintenta con backoff.
 
 ## Estado del reporte
 
@@ -70,4 +71,4 @@ Los estados deben mantenerse separados:
 - Auditoría de moderación sin guardar datos médicos o PII innecesaria.
 - Pruebas de carga y de recuperación con colas duplicadas.
 
-El Worker de `api/` y D1 están desplegados en staging. La aplicación solo muestra el botón de sincronización cuando existe `VITE_REPORTS_API_URL`; el envío es manual y no se habilita por defecto. Antes de usuarios reales falta validar el Rate Limiting, el cron de retención, el origen de preview y el QA en dispositivos físicos.
+El Worker de `api/` y D1 están desplegados en staging. La aplicación solo muestra el botón de sincronización cuando existe `VITE_REPORTS_API_URL`; el envío es manual y no se habilita por defecto. Smoke tests remotos confirmaron el Rate Limiting, el cron de retención, el origen del preview y el contrato de sincronización; todavía falta probar carga/abuso y completar QA físico de sincronización.

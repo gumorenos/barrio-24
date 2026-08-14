@@ -13,7 +13,9 @@ El formulario permite:
 - añadir voluntariamente una zona aproximada;
 - guardar el reporte en IndexedDB;
 - consultar los cinco reportes locales más recientes.
-- sincronizar manualmente los reportes guardados cuando se configure un API de staging.
+- sincronizar manualmente los reportes guardados cuando se configure un API de staging;
+- exportar los reportes locales como JSON;
+- borrar un reporte o todas las copias locales.
 
 No permite todavía:
 
@@ -37,6 +39,8 @@ Cada registro contiene únicamente:
 - celda geográfica aproximada opcional.
 
 La celda se calcula redondeando la latitud y longitud a una cuadrícula de aproximadamente 1 km antes de escribir en IndexedDB. Las coordenadas exactas no se almacenan.
+
+La exportación contiene únicamente el contrato local permitido: identificador del evento, categoría, gravedad, fecha, estado y celda aproximada. Borrar una copia local no elimina un evento que ya se haya sincronizado al staging; ese registro sigue la política remota de retención.
 
 ## Lenguaje obligatorio
 
@@ -62,4 +66,4 @@ Antes de conectar usuarios reales se necesita definir y revisar:
 7. cola y comportamiento cuando el backend esté saturado;
 8. panel de moderación y estados de verificación.
 
-Cloudflare y D1 ya tienen un entorno de staging aislado. Falta validar la sincronización desde la PWA, probar dispositivos físicos y definir moderación/consulta pública antes de cualquier uso real.
+Cloudflare y D1 ya tienen un entorno de staging aislado. El contrato, la idempotencia, los límites básicos, la retención y la sincronización en Chromium están validados; la geolocalización también fue validada manualmente en Arc Search para iPhone. Falta completar QA físico de sincronización, pruebas de abuso, revisión de seguridad/privacidad y definir moderación/consulta pública antes de cualquier uso real.

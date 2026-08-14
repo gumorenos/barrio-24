@@ -84,6 +84,28 @@ export interface RapidReport {
   status: RapidReportStatus
 }
 
+export const RAPID_REPORT_EXPORT_VERSION = 1
+
+export function serializeRapidReports(reports: RapidReport[], exportedAt = new Date().toISOString()): string {
+  if (!Number.isFinite(Date.parse(exportedAt))) {
+    throw new Error('La fecha de exportación no es válida.')
+  }
+
+  return JSON.stringify({
+    export_version: RAPID_REPORT_EXPORT_VERSION,
+    exported_at: exportedAt,
+    reports: reports.map((report) => ({
+      event_id: report.id,
+      schema_version: report.schemaVersion,
+      category: report.category,
+      severity: report.severity,
+      location_cell: report.locationCell,
+      observed_at: new Date(report.createdAt).toISOString(),
+      status: report.status,
+    })),
+  }, null, 2)
+}
+
 export function getCategoryLabel(category: RapidReportCategory): string {
   return RAPID_REPORT_CATEGORIES.find((item) => item.id === category)?.label ?? category
 }

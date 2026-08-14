@@ -8,6 +8,7 @@ import {
   CloudOff,
   CloudUpload,
   Droplets,
+  Download,
   Flame,
   HeartPulse,
   Home,
@@ -16,6 +17,7 @@ import {
   PersonStanding,
   ShieldAlert,
   TrafficCone,
+  Trash2,
   UserRound,
   WifiOff,
   Zap,
@@ -29,6 +31,7 @@ import {
   getSeverityLabel,
   RAPID_REPORT_CATEGORIES,
   RAPID_REPORT_SEVERITIES,
+  serializeRapidReports,
   type RapidReport,
   type RapidReportCategory,
   type RapidReportSeverity,
@@ -193,6 +196,54 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
     }
   }
 
+  async function exportLocalReports() {
+    clearFeedback()
+    const allReports = await db.rapidReports.orderBy('createdAt').reverse().toArray()
+    if (allReports.length === 0) {
+      setError('No hay reportes locales para exportar.')
+      return
+    }
+
+    const blob = new Blob([serializeRapidReports(allReports)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `barrio24-reportes-${new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    setMessage(`Se exportaron ${allReports.length} reporte${allReports.length === 1 ? '' : 's'} locales. El archivo contiene solo celdas aproximadas.`)
+  }
+
+  async function deleteLocalReport(report: RapidReport) {
+    clearFeedback()
+    const alreadySynced = report.status === 'unverified'
+    const warning = alreadySynced
+      ? ' La copia que ya llegó al staging no se borra con esta acción y seguirá su política de retención.'
+      : ' Si estaba pendiente, dejará de reintentarse.'
+    if (!window.confirm(`¿Borrar este reporte de este dispositivo?${warning}`)) return
+
+    await db.rapidReports.delete(report.id)
+    await refreshReports()
+    setMessage(alreadySynced
+      ? 'Se borró la copia local. El registro remoto no se modifica.'
+      : 'Se borró el reporte de este dispositivo.')
+  }
+
+  async function deleteAllLocalReports() {
+    clearFeedback()
+    if (totalReports === 0) {
+      setError('No hay reportes locales para borrar.')
+      return
+    }
+
+    if (!window.confirm(`¿Borrar los ${totalReports} reportes de este dispositivo? Los reportes ya sincronizados no se eliminarán del staging.`)) return
+    await db.rapidReports.clear()
+    await refreshReports()
+    setMessage(`Se borraron ${totalReports} reporte${totalReports === 1 ? '' : 's'} de este dispositivo.`)
+  }
+
   return (
     <div className="rapid-shell">
       <header className="rapid-header">
@@ -316,7 +367,19 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
               <p className="eyebrow">Solo en este dispositivo</p>
               <h2 id="rapid-recent-title">Reportes recientes</h2>
             </div>
-            <span className="tiny-label">{reports.length === totalReports ? `${totalReports} guardado${totalReports === 1 ? '' : 's'}` : `${reports.length} de ${totalReports} recientes`}</span>
+            <div className="rapid-list-tools">
+              <span className="tiny-label">{reports.length === totalReports ? `${totalReports} guardado${totalReports === 1 ? '' : 's'}` : `${reports.length} de ${totalReports} recientes`}</span>
+              {totalReports > 0 && (
+                <div className="rapid-list-actions">
+                  <button className="text-button" type="button" onClick={() => void exportLocalReports()}>
+                    <Download size={15} aria-hidden="true" /> Exportar
+                  </button>
+                  <button className="text-button rapid-danger-action" type="button" onClick={() => void deleteAllLocalReports()}>
+                    <Trash2 size={15} aria-hidden="true" /> Borrar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           {reports.length === 0 ? (
             <div className="rapid-empty"><CircleAlert size={22} aria-hidden="true" /><p>Aquí aparecerán los reportes que guardes. No son visibles para otras personas.</p></div>
@@ -327,6 +390,9 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
                   <span className="rapid-report-list-icon"><UserRound size={17} aria-hidden="true" /></span>
                   <span><strong>{getCategoryLabel(report.category)}</strong><small>{getSeverityLabel(report.severity)} · {formatTimestamp(report.createdAt)} · {reportLocationLabel(report.locationCell)}</small></span>
                   <span className="rapid-local-badge">{getRapidReportStatusLabel(report.status)}</span>
+                  <button className="rapid-delete-button" type="button" aria-label={`Borrar reporte de ${getCategoryLabel(report.category)}`} onClick={() => void deleteLocalReport(report)}>
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
                 </li>
               ))}
             </ul>

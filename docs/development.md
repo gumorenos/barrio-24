@@ -48,10 +48,11 @@ La tarjeta no sincroniza información médica, no reemplaza una evaluación prof
 3. Puede añadir una zona aproximada de alrededor de 1 km, sin guardar coordenadas exactas.
 4. El reporte queda en IndexedDB con estado `local-only`.
 5. La interfaz no afirma que el reporte se haya enviado, publicado o verificado.
+6. El usuario puede exportar el conjunto local en JSON y borrar reportes individuales o todas las copias locales.
 
 El Worker y D1 de staging ya existen y fueron validados con smoke tests remotos. La aplicación puede activar un envío manual si `VITE_REPORTS_API_URL` está configurada; sin esa variable permanece completamente local. No hay feed público, no se envía información médica ni se acepta texto libre, fotos o coordenadas exactas.
 
-Los reportes nuevos se guardan como `unverified` en el API. La retención inicial es de 30 días y el Worker de staging tiene una tarea diaria de eliminación. La ubicación requiere validación manual en dispositivos reales antes de habilitar un flujo remoto para usuarios.
+Los reportes nuevos se guardan como `unverified` en el API. La retención inicial es de 30 días y el Worker de staging tiene una tarea diaria de eliminación. Chromium validó la sincronización y el propietario validó manualmente la geolocalización en Arc Search para iPhone; todavía falta completar QA físico de sincronización y pruebas de abuso antes de usuarios reales.
 
 Para probar el envío manual en local, copia `.env.example` a `.env.local`, descomenta `VITE_REPORTS_API_URL` y ejecuta `npm run dev` o `npm run build && npm run preview`. No uses datos reales en staging.
 
