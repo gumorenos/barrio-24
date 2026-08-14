@@ -12,6 +12,7 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Estado inicial `unverified`, que significa recibido pero no verificado.
 - Consulta operativa de solo lectura en `GET /v1/ops/reports`, protegida por un secreto Bearer y desactivada si el secreto no está configurado.
 - Resumen agregado en `GET /v1/ops/summary`, con total, estados y fecha más reciente; no devuelve reportes individuales ni ubicaciones.
+- Contrato de estados y transiciones futuras documentado en `docs/product/rapid-report-moderation.md`; no hay mutaciones activas.
 - La consulta operativa devuelve solo campos del contrato ciudadano, permite filtrar por estado y pagina con cursor; no tiene CORS ni endpoints de mutación.
 - CORS restringible mediante `ALLOWED_ORIGIN`.
 - Si `ALLOWED_ORIGIN` no está configurado, los navegadores reciben `403` en vez de acceso abierto accidental.

@@ -67,6 +67,8 @@ Authorization: Bearer <REPORTS_OPERATIONS_TOKEN>
 
 También existe `GET /v1/ops/summary` con el total de reportes, distribución por estado, última recepción y días de retención. Es una respuesta agregada: no incluye eventos ni celdas geográficas.
 
+Las transiciones previstas y los requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md), pero todavía no están expuestos como mutaciones del Worker.
+
 ## Estado del reporte
 
 Los estados deben mantenerse separados:
