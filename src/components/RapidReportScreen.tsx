@@ -100,7 +100,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
       case error.PERMISSION_DENIED:
         return 'Este navegador no tiene permiso para usar la ubicación. Revisa el permiso de ubicación del sitio y vuelve a intentarlo.'
       case error.POSITION_UNAVAILABLE:
-        return 'El iPhone no pudo determinar una ubicación. Comprueba que Localización esté activa, prueba con Wi‑Fi o datos móviles y vuelve a intentarlo.'
+        return 'El navegador no pudo determinar una ubicación. Comprueba que la localización esté activa, prueba con Wi‑Fi o datos móviles y vuelve a intentarlo.'
       case error.TIMEOUT:
         return 'La ubicación tardó demasiado en responder. Mantén abierta esta página, espera unos segundos y vuelve a intentarlo.'
       default:
@@ -117,7 +117,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
     }
     if (!window.isSecureContext) {
       setLocationStatus('unavailable')
-      setError('La ubicación solo funciona en una conexión segura. Abre el preview en Safari usando su dirección https://.')
+      setError('La ubicación solo funciona en una conexión segura. Abre este preview usando su dirección https://.')
       return
     }
 
@@ -212,7 +212,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
     document.body.appendChild(link)
     link.click()
     link.remove()
-    URL.revokeObjectURL(url)
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
     setMessage(`Se exportaron ${allReports.length} reporte${allReports.length === 1 ? '' : 's'} locales. El archivo contiene solo celdas aproximadas.`)
   }
 
