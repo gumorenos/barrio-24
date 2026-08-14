@@ -56,6 +56,8 @@ Los reportes nuevos se guardan como `unverified` en el API. La retención inicia
 
 Cada solicitud de sincronización tiene un timeout de 12 segundos. Ante rate limit, indisponibilidad o error de red, el cliente corta la ráfaga y conserva los eventos para reintento manual.
 
+El preview de staging publica cabeceras básicas de privacidad, impide framing y lleva `noindex`/`robots.txt` para no aparecer en buscadores. Antes de cualquier despliegue de producción hay que revisar explícitamente esa política y retirar el bloqueo de indexación si corresponde.
+
 Para probar el envío manual en local, copia `.env.example` a `.env.local`, descomenta `VITE_REPORTS_API_URL` y ejecuta `npm run dev` o `npm run build && npm run preview`. No uses datos reales en staging.
 
 ## Revisión antes de commit
