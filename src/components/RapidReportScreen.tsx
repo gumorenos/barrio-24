@@ -95,7 +95,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
   function locationErrorMessage(error: GeolocationPositionError): string {
     switch (error.code) {
       case error.PERMISSION_DENIED:
-        return 'Safari no tiene permiso para usar la ubicación. Actívala en Ajustes > Privacidad y seguridad > Localización > Safari y vuelve a intentarlo.'
+        return 'Este navegador no tiene permiso para usar la ubicación. Revisa el permiso de ubicación del sitio y vuelve a intentarlo.'
       case error.POSITION_UNAVAILABLE:
         return 'El iPhone no pudo determinar una ubicación. Comprueba que Localización esté activa, prueba con Wi‑Fi o datos móviles y vuelve a intentarlo.'
       case error.TIMEOUT:
