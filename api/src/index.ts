@@ -14,7 +14,8 @@ const REPORT_SEVERITIES = new Set(['observed', 'attention', 'immediate-risk'])
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const LOCATION_CELL_PATTERN = /^(-?\d{1,3}\.\d{2}),(-?\d{1,3}\.\d{2})$/
 const MAX_BODY_BYTES = 2_048
-const RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
+const RETENTION_DAYS = 30
+const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1_000
 
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement
@@ -73,6 +74,7 @@ const OPERATIONAL_STATUSES = new Set([
 ])
 const DEFAULT_OPERATIONAL_LIMIT = 50
 const MAX_OPERATIONAL_LIMIT = 100
+const MIN_OPERATIONS_TOKEN_LENGTH = 32
 const OPERATIONAL_CURSOR_PATTERN = /^(\d+):([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
 function headersFor(request: Request, env: Env): Headers {
@@ -253,14 +255,25 @@ function operationalCursorFor(report: OperationalReport): string {
   return `${report.received_at}:${report.event_id}`
 }
 
-async function listOperationalReports(request: Request, env: Env): Promise<Response> {
+function operationsToken(env: Env): string | null {
   const configuredToken = env.REPORTS_OPERATIONS_TOKEN?.trim()
+  return configuredToken && configuredToken.length >= MIN_OPERATIONS_TOKEN_LENGTH ? configuredToken : null
+}
+
+function authorizeOperations(request: Request, env: Env): Response | null {
+  const configuredToken = operationsToken(env)
   if (!configuredToken) return operationsJson({ error: 'not_found' }, 404)
 
   const authorization = request.headers.get('Authorization') ?? ''
   if (authorization !== `Bearer ${configuredToken}`) {
     return operationsJson({ error: 'unauthorized' }, 401, { 'www-authenticate': 'Bearer' })
   }
+  return null
+}
+
+async function listOperationalReports(request: Request, env: Env): Promise<Response> {
+  const authorizationError = authorizeOperations(request, env)
+  if (authorizationError) return authorizationError
 
   const url = new URL(request.url)
   const status = url.searchParams.get('status')
@@ -307,6 +320,47 @@ async function listOperationalReports(request: Request, env: Env): Promise<Respo
   }
 }
 
+interface OperationalStatusSummary extends Record<string, unknown> {
+  status: string
+  count: number
+  latest_received_at: number | null
+}
+
+async function getOperationalSummary(request: Request, env: Env): Promise<Response> {
+  const authorizationError = authorizeOperations(request, env)
+  if (authorizationError) return authorizationError
+
+  try {
+    const result = await env.DB.prepare(
+      `SELECT status, COUNT(*) AS count, MAX(received_at) AS latest_received_at
+       FROM reports
+       GROUP BY status`,
+    ).all<OperationalStatusSummary>()
+    const byStatus: Record<string, number> = {}
+    let total = 0
+    let latestReceivedAt: number | null = null
+    for (const row of result.results) {
+      const count = Number(row.count)
+      if (!Number.isSafeInteger(count) || count < 0) continue
+      byStatus[row.status] = count
+      total += count
+      const latest = row.latest_received_at === null ? null : Number(row.latest_received_at)
+      if (latest !== null && Number.isSafeInteger(latest) && (latestReceivedAt === null || latest > latestReceivedAt)) {
+        latestReceivedAt = latest
+      }
+    }
+
+    return operationsJson({
+      total,
+      by_status: byStatus,
+      latest_received_at: latestReceivedAt,
+      retention_days: RETENTION_DAYS,
+    })
+  } catch {
+    return operationsJson({ error: 'storage_unavailable' }, 503, { 'retry-after': '60' })
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (!isAllowedOrigin(request, env)) return json(request, env, { error: 'origin_not_allowed' }, 403)
@@ -326,6 +380,10 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/v1/ops/reports') {
       return listOperationalReports(request, env)
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/ops/summary') {
+      return getOperationalSummary(request, env)
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reports') {

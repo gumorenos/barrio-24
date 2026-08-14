@@ -37,6 +37,21 @@ class MockD1Statement {
   }
 
   async all<T extends Record<string, unknown>>(): Promise<{ results: T[] }> {
+    if (this.query.includes('GROUP BY status')) {
+      const summary = new Map<string, { count: number; latest_received_at: number | null }>()
+      for (const report of this.database.reports.values()) {
+        const current = summary.get(report.status) ?? { count: 0, latest_received_at: null }
+        current.count += 1
+        current.latest_received_at = current.latest_received_at === null
+          ? report.received_at
+          : Math.max(current.latest_received_at, report.received_at)
+        summary.set(report.status, current)
+      }
+      return {
+        results: [...summary.entries()].map(([status, values]) => ({ status, ...values })) as unknown as T[],
+      }
+    }
+
     if (!this.query.includes('SELECT event_id, schema_version, category, severity')) {
       return { results: [] }
     }
@@ -279,7 +294,7 @@ describe('Worker de Reporte 60 segundos', () => {
 
   it('protege la consulta operativa y pagina por cursor sin habilitar CORS', async () => {
     const env = createEnv()
-    env.REPORTS_OPERATIONS_TOKEN = 'test-operations-token'
+    env.REPORTS_OPERATIONS_TOKEN = 'test-operations-token-12345678901234567890'
     env.DB.reports.set('first', {
       event_id: '00000000-0000-4000-8000-000000000010',
       schema_version: 1,
@@ -316,7 +331,7 @@ describe('Worker de Reporte 60 segundos', () => {
     expect(unauthorized.headers.get('access-control-allow-origin')).toBeNull()
 
     const firstPage = await worker.fetch(request('/v1/ops/reports?status=unverified&limit=1', {
-      headers: { Authorization: 'Bearer test-operations-token' },
+      headers: { Authorization: 'Bearer test-operations-token-12345678901234567890' },
     }), env)
     expect(firstPage.status).toBe(200)
     const firstBody = await firstPage.json() as {
@@ -331,7 +346,7 @@ describe('Worker de Reporte 60 segundos', () => {
     expect(firstBody.next_cursor).toBe('300:00000000-0000-4000-8000-000000000010')
 
     const secondPage = await worker.fetch(request(`/v1/ops/reports?status=unverified&limit=1&cursor=${firstBody.next_cursor}`, {
-      headers: { Authorization: 'Bearer test-operations-token' },
+      headers: { Authorization: 'Bearer test-operations-token-12345678901234567890' },
     }), env)
     expect(secondPage.status).toBe(200)
     await expect(secondPage.json()).resolves.toMatchObject({
@@ -340,9 +355,20 @@ describe('Worker de Reporte 60 segundos', () => {
     })
 
     const invalidStatus = await worker.fetch(request('/v1/ops/reports?status=not-a-status', {
-      headers: { Authorization: 'Bearer test-operations-token' },
+      headers: { Authorization: 'Bearer test-operations-token-12345678901234567890' },
     }), env)
     expect(invalidStatus.status).toBe(400)
+
+    const summary = await worker.fetch(request('/v1/ops/summary', {
+      headers: { Authorization: 'Bearer test-operations-token-12345678901234567890' },
+    }), env)
+    expect(summary.status).toBe(200)
+    await expect(summary.json()).resolves.toMatchObject({
+      total: 3,
+      by_status: { unverified: 2, verified: 1 },
+      latest_received_at: 300,
+      retention_days: 30,
+    })
 
     const missingSecret = await worker.fetch(request('/v1/ops/reports'), createEnv())
     expect(missingSecret.status).toBe(404)

@@ -65,6 +65,8 @@ Authorization: Bearer <REPORTS_OPERATIONS_TOKEN>
 - Los errores de autenticación no revelan datos; los fallos de D1 responden `503`.
 - No hay mutaciones operativas. Los cambios a `verified`, `duplicate` o `resolved` quedan pendientes de definir con roles, auditoría y autenticación fuerte.
 
+También existe `GET /v1/ops/summary` con el total de reportes, distribución por estado, última recepción y días de retención. Es una respuesta agregada: no incluye eventos ni celdas geográficas.
+
 ## Estado del reporte
 
 Los estados deben mantenerse separados:

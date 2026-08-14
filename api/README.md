@@ -11,6 +11,7 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Inserción idempotente por `event_id`.
 - Estado inicial `unverified`, que significa recibido pero no verificado.
 - Consulta operativa de solo lectura en `GET /v1/ops/reports`, protegida por un secreto Bearer y desactivada si el secreto no está configurado.
+- Resumen agregado en `GET /v1/ops/summary`, con total, estados y fecha más reciente; no devuelve reportes individuales ni ubicaciones.
 - La consulta operativa devuelve solo campos del contrato ciudadano, permite filtrar por estado y pagina con cursor; no tiene CORS ni endpoints de mutación.
 - CORS restringible mediante `ALLOWED_ORIGIN`.
 - Si `ALLOWED_ORIGIN` no está configurado, los navegadores reciben `403` en vez de acceso abierto accidental.
@@ -34,7 +35,7 @@ La configuración real de staging se mantiene fuera del repositorio para no publ
 
 ## Consulta operativa de staging
 
-El endpoint de operaciones no forma parte de la PWA ni del feed público. Solo se habilita cuando el Worker tiene el secreto `REPORTS_OPERATIONS_TOKEN`; nunca se debe escribir ese valor en Git, en `wrangler.toml` ni en un prompt compartido. Si falta el secreto, la ruta responde `404`.
+Los endpoints de operaciones no forman parte de la PWA ni del feed público. Solo se habilitan cuando el Worker tiene el secreto `REPORTS_OPERATIONS_TOKEN` con al menos 32 caracteres; nunca se debe escribir ese valor en Git, en `wrangler.toml` ni en un prompt compartido. Si falta el secreto o es demasiado corto, las rutas responden `404`.
 
 Para configurarlo en el entorno autorizado:
 
@@ -50,3 +51,10 @@ curl -H "Authorization: Bearer $REPORTS_OPERATIONS_TOKEN" \
 ```
 
 La respuesta incluye `next_cursor` cuando hay más resultados. El cursor se puede enviar como `cursor` en la siguiente consulta. Por ahora no existen `PATCH`, `POST` ni `DELETE` operativos: cambiar estados sin roles y auditoría sería inseguro.
+
+El resumen agregado se consulta así:
+
+```bash
+curl -H "Authorization: Bearer $REPORTS_OPERATIONS_TOKEN" \
+  "https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/summary"
+```
