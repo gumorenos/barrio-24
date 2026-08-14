@@ -4,7 +4,7 @@ Plataforma pública y gratuita para preparación, coordinación comunitaria y re
 
 > Estado: Fase 2 inicial en implementación — 13 de agosto de 2026
 
-La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 inicial añade captura local de Reporte 60 segundos. Existe un esqueleto de Worker en `api/`, pero la aplicación todavía no está conectada y no hay sincronización remota.
+La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 inicial añade captura de Reporte 60 segundos. Existe un Worker/D1 de staging; la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada, pero no hay feed público ni moderación operativa.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 
@@ -59,7 +59,7 @@ Categorías iniciales:
 - Necesidad de refugio.
 - Necesidad de alimentos o medicinas.
 
-El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline. La primera implementación local ya permite elegir categoría, nivel de gravedad observado y una zona aproximada opcional. Por ahora cada reporte permanece en IndexedDB y se marca explícitamente como local; todavía no se envía ni se publica.
+El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline. La implementación permite elegir categoría, nivel de gravedad observado y una zona aproximada opcional. Por defecto cada reporte permanece en IndexedDB; con una URL de staging configurada puede enviarse manualmente y queda marcado como `unverified`, nunca como información oficial.
 
 Los reportes públicos tendrán ubicación aproximada, fecha, estado y nivel de verificación. No se expondrán coordenadas exactas de personas ni se presentarán observaciones ciudadanas como información oficial.
 
@@ -247,7 +247,7 @@ La captura local actual:
 - nunca guarda la coordenada exacta;
 - no debe presentarse como reporte recibido, verificado o enviado a una autoridad.
 
-La siguiente etapa será diseñar y revisar el contrato del API, idempotencia, rate limiting, moderación y retención antes de conectar cualquier sincronización.
+El contrato mínimo, la idempotencia, el límite inicial y la retención de staging ya están implementados. Antes de usuarios reales faltan moderación, política de exposición pública, QA físico y una revisión de seguridad/privacidad.
 
 ## Escalabilidad y modo de emergencia
 
@@ -508,7 +508,7 @@ SEIDAS podrá evaluarse en el futuro mediante una integración oficial y documen
 
 ## Estado de esta rama
 
-Esta rama deja implementado el núcleo local de Reporte 60 segundos. El siguiente paso no es simular una API: requiere revisión en dispositivos, definición del contrato de sincronización y preparación de un entorno de staging. La Fase 0 dejó estos hitos verificables:
+Esta rama deja implementados el núcleo local de Reporte 60 segundos y el primer flujo de sincronización manual contra staging. El siguiente paso requiere QA de integración, revisión en dispositivos y definición de moderación antes de cualquier uso real. La Fase 0 dejó estos hitos verificables:
 
 1. se instala como PWA;
 2. muestra claramente si está offline;

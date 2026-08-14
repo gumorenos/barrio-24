@@ -2,7 +2,7 @@
 
 ## Alcance actual
 
-El proyecto está en la Fase 2 inicial: scaffold de PWA offline-first, Tarjeta Médica Offline local y captura local de Reporte 60 segundos. Existe un esqueleto de Worker en `api/`, pero la aplicación todavía no está conectada a él y no hay sincronización, moderación ni publicación remota. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+El proyecto está en la Fase 2 inicial: scaffold de PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. No hay feed público ni moderación operativa; los reportes remotos permanecen `unverified`. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
 
 ## Reglas
 
