@@ -18,6 +18,7 @@ import MedicalCardScreen from './components/MedicalCardScreen'
 import RapidReportScreen from './components/RapidReportScreen'
 import { db, type OutboxEvent } from './lib/db'
 import { createFoundationEvent, formatTimestamp, statusLabel } from './lib/outbox'
+import { REPORTS_API_URL } from './lib/rapid-report-sync'
 
 type ConnectionState = 'online' | 'offline'
 
@@ -171,8 +172,12 @@ function App() {
             <aside className="hero-note" aria-label="Estado de la captura offline">
               <div className="note-icon"><ShieldCheck size={22} aria-hidden="true" /></div>
               <p className="note-kicker">Hito verificable</p>
-              <p className="note-title">La información queda en el dispositivo mientras no hay API.</p>
-              <p className="note-body">La tarjeta médica y los reportes locales aún no se envían ni se publican.</p>
+              <p className="note-title">La información queda en el dispositivo hasta que tú decidas sincronizar.</p>
+              <p className="note-body">
+                {REPORTS_API_URL
+                  ? 'Reporte 60 segundos puede enviarse manualmente al API de prueba y queda no verificado; la tarjeta médica permanece local.'
+                  : 'La tarjeta médica y los reportes se mantienen locales: no se envían ni se publican.'}
+              </p>
             </aside>
           </div>
         </section>
@@ -262,7 +267,7 @@ function App() {
 
       <footer className="footer">
         <span>Barrio 24 · planificación inicial</span>
-        <span>Datos sintéticos · sin API conectada</span>
+        <span>{REPORTS_API_URL ? 'Reporte 60 segundos · API de prueba' : 'Datos sintéticos · sin API conectada'}</span>
       </footer>
     </div>
   )
