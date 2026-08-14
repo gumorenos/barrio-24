@@ -12,7 +12,7 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Estado inicial `unverified`, que significa recibido pero no verificado.
 - CORS restringible mediante `ALLOWED_ORIGIN`.
 - Migraciones D1 `0001_reports.sql` y `0002_unverified_reports.sql`.
-- Límite inicial de 10 solicitudes por cliente por ventana de 60 segundos mediante Rate Limiting de Cloudflare.
+- Límite inicial configurado de 10 solicitudes por cliente por ventana de 60 segundos mediante Rate Limiting de Cloudflare. Es una protección gruesa y eventualmente consistente, no una cuota estricta ni la única defensa contra abuso.
 - Eliminación programada de reportes con más de 30 días.
 
 ## Aún falta antes de conectar usuarios

@@ -10,6 +10,7 @@ Este documento describe el contrato mínimo implementado en el Worker de staging
 - La ubicación recibida ya debe ser una celda aproximada; el API no debe aceptar coordenadas exactas del cliente.
 - El contenido público debe ser agregado o redondeado nuevamente según riesgo y densidad.
 - Ningún reporte ciudadano debe presentarse como información oficial.
+- El Rate Limiting nativo de Cloudflare es una primera barrera de abuso, pero no debe tratarse como una cuota global estricta.
 
 ## Flujo propuesto
 
@@ -61,6 +62,7 @@ Los estados deben mantenerse separados:
 
 - Estrategia de identidad del dispositivo y límites por IP, evento y huella no invasiva.
 - Protección contra reenvío malicioso de `event_id`.
+- Protección adicional contra abuso si el servicio se abre a usuarios reales; el límite nativo puede ser permisivo y variar por ubicación de borde.
 - Ventana de deduplicación por categoría, celda y tiempo.
 - Retención, borrado y exportación.
 - Política de exposición pública para celdas con pocos reportes.
