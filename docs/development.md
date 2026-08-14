@@ -54,6 +54,8 @@ El Worker y D1 de staging ya existen y fueron validados con smoke tests remotos.
 
 Los reportes nuevos se guardan como `unverified` en el API. La retención inicial es de 30 días y el Worker de staging tiene una tarea diaria de eliminación. Chromium validó la sincronización y el propietario validó manualmente la geolocalización en Arc Search para iPhone; todavía falta completar QA físico de sincronización y pruebas de abuso antes de usuarios reales.
 
+Cada solicitud de sincronización tiene un timeout de 12 segundos. Ante rate limit, indisponibilidad o error de red, el cliente corta la ráfaga y conserva los eventos para reintento manual.
+
 Para probar el envío manual en local, copia `.env.example` a `.env.local`, descomenta `VITE_REPORTS_API_URL` y ejecuta `npm run dev` o `npm run build && npm run preview`. No uses datos reales en staging.
 
 ## Revisión antes de commit

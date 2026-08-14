@@ -47,6 +47,8 @@ El servidor no debe aceptar nombre, teléfono, DNI, texto libre, fotografías ni
 - `429 Too Many Requests`: límite temporal alcanzado; el cliente conserva el evento local.
 - `503 Service Unavailable`: almacenamiento o Rate Limiting no disponible; el cliente conserva el evento local y reintenta con backoff.
 
+El cliente impone un timeout de 12 segundos por solicitud. Ante `429`, `503`, timeout o error de red detiene la ráfaga para no empeorar el abuso o la saturación; el evento que falló y los siguientes permanecen locales para un reintento manual. La respuesta `Retry-After`, cuando existe, se muestra al usuario.
+
 ## Estado del reporte
 
 Los estados deben mantenerse separados:
