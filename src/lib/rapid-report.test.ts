@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createRapidReport,
   getApproximateLocationCell,
+  getRapidReportStatusLabel,
   isRapidReport,
 } from './rapid-report'
 
@@ -33,5 +34,10 @@ describe('Reporte 60 segundos local', () => {
   it('rechaza una categoría o gravedad que no pertenezca al catálogo', () => {
     expect(() => createRapidReport({ category: 'unknown' as never, severity: 'attention' })).toThrow('categoría')
     expect(() => createRapidReport({ category: 'blocked-street', severity: 'unknown' as never })).toThrow('gravedad')
+  })
+
+  it('distingue el estado local del estado remoto no verificado', () => {
+    expect(getRapidReportStatusLabel('local-only')).toBe('Solo en este dispositivo')
+    expect(getRapidReportStatusLabel('unverified')).toBe('Recibido · no verificado')
   })
 })

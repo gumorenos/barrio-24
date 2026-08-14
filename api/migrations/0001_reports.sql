@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS reports (
   location_cell TEXT,
   observed_at TEXT NOT NULL,
   received_at INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'received' CHECK (status IN (
+  status TEXT NOT NULL DEFAULT 'unverified' CHECK (status IN (
     'received', 'unverified', 'duplicate', 'verified', 'resolved', 'expired'
   ))
 );

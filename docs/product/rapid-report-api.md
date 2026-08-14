@@ -1,6 +1,6 @@
-# Contrato pendiente para Reporte 60 segundos conectado
+# Contrato de staging para Reporte 60 segundos conectado
 
-Este documento no describe una API implementada. Es el límite de diseño que debe revisarse antes de conectar el formulario local a Cloudflare.
+Este documento describe el contrato mínimo implementado en el Worker de staging. No define todavía un producto público ni un panel de moderación.
 
 ## Principios
 
@@ -18,7 +18,7 @@ PWA local
   -> POST /v1/reports
   -> validación rápida + límite de abuso
   -> 202 Accepted si el evento es válido
-  -> D1 con estado received/unverified
+  -> D1 con estado unverified
   -> Queue opcional en una revisión posterior
 ```
 
@@ -50,14 +50,14 @@ El servidor no debe aceptar nombre, teléfono, DNI, texto libre, fotografías ni
 Los estados deben mantenerse separados:
 
 1. `local-only`: solo existe en el dispositivo.
-2. `received`: el API aceptó el evento.
-3. `unverified`: guardado, pero no revisado por una fuente autorizada.
+2. `pending`: el cliente está intentando enviarlo.
+3. `unverified`: guardado por el API, pero no revisado por una fuente autorizada.
 4. `duplicate`: agrupado con otro evento, sin borrar el original sin auditoría.
 5. `verified`: revisado según un procedimiento documentado.
 6. `resolved`: la necesidad fue marcada como atendida por un rol autorizado.
 7. `expired`: dejó de ser operativo por retención o antigüedad.
 
-## Revisión obligatoria antes de implementar
+## Revisión pendiente antes de usuarios reales
 
 - Estrategia de identidad del dispositivo y límites por IP, evento y huella no invasiva.
 - Protección contra reenvío malicioso de `event_id`.
@@ -68,4 +68,4 @@ Los estados deben mantenerse separados:
 - Auditoría de moderación sin guardar datos médicos o PII innecesaria.
 - Pruebas de carga y de recuperación con colas duplicadas.
 
-El Worker de `api/` es solo un esqueleto de staging y todavía no está conectado a la aplicación. Hasta completar esa revisión, la aplicación debe conservar el estado `local-only` y no mostrar botones o mensajes que impliquen envío.
+El Worker de `api/` y D1 están desplegados en staging. La aplicación solo muestra el botón de sincronización cuando existe `VITE_REPORTS_API_URL`; el envío es manual y no se habilita por defecto. Antes de usuarios reales falta validar el Rate Limiting, el cron de retención, el origen de preview y el QA en dispositivos físicos.

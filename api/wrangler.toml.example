@@ -9,3 +9,14 @@ ALLOWED_ORIGIN = "https://REPLACE-WITH-PAGES-PREVIEW.example"
 binding = "DB"
 database_name = "barrio24-reports-staging"
 database_id = "REPLACE_WITH_STAGING_DATABASE_ID"
+
+[[ratelimits]]
+name = "REPORTS_RATE_LIMITER"
+namespace_id = "REPLACE_WITH_UNIQUE_RATE_LIMIT_NAMESPACE_ID"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+
+[triggers]
+crons = ["0 5 * * *"]

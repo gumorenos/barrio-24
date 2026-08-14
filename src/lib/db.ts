@@ -47,3 +47,12 @@ class BarrioDatabase extends Dexie {
 }
 
 export const db = new BarrioDatabase()
+
+export async function getClientId(): Promise<string> {
+  const existing = await db.meta.get('client-id')
+  if (existing?.value) return existing.value
+
+  const clientId = crypto.randomUUID()
+  await db.meta.put({ key: 'client-id', value: clientId })
+  return clientId
+}

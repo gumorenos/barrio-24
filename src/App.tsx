@@ -118,7 +118,7 @@ function App() {
       await db.meta.put({ key: 'last-sync', value: String(Date.now()) })
     })
 
-    setNotice('Demostración completada: las operaciones quedaron marcadas localmente. El API aún no está conectado.')
+    setNotice('Demostración completada: esta cola sintética solo cambia de estado localmente.')
     await refreshLocalState()
   }
 
@@ -163,7 +163,7 @@ function App() {
                 </button>
                 <button className="button secondary" type="button" onClick={() => void simulateSync()}>
                   <RefreshCw size={17} aria-hidden="true" />
-                  Probar sincronización
+                  Simular cola local
                 </button>
               </div>
               {notice && <p className="notice" role="status">{notice}</p>}

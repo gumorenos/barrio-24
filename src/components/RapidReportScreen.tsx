@@ -6,6 +6,7 @@ import {
   Check,
   CircleAlert,
   CloudOff,
+  CloudUpload,
   Droplets,
   Flame,
   HeartPulse,
@@ -24,6 +25,7 @@ import {
   createRapidReport,
   getApproximateLocationCell,
   getCategoryLabel,
+  getRapidReportStatusLabel,
   getSeverityLabel,
   RAPID_REPORT_CATEGORIES,
   RAPID_REPORT_SEVERITIES,
@@ -32,6 +34,7 @@ import {
   type RapidReportSeverity,
 } from '../lib/rapid-report'
 import { formatTimestamp } from '../lib/outbox'
+import { REPORTS_API_URL, syncLocalRapidReports } from '../lib/rapid-report-sync'
 
 interface RapidReportScreenProps {
   onBack: () => void
@@ -65,13 +68,19 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
   const [locationCell, setLocationCell] = useState<string | null>(null)
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('not-requested')
   const [reports, setReports] = useState<RapidReport[]>([])
+  const [totalReports, setTotalReports] = useState(0)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   async function refreshReports() {
-    const recent = await db.rapidReports.orderBy('createdAt').reverse().limit(5).toArray()
+    const [recent, total] = await Promise.all([
+      db.rapidReports.orderBy('createdAt').reverse().limit(5).toArray(),
+      db.rapidReports.count(),
+    ])
     setReports(recent)
+    setTotalReports(total)
   }
 
   useEffect(() => {
@@ -143,6 +152,29 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
     }
   }
 
+  async function syncReports() {
+    clearFeedback()
+    if (!REPORTS_API_URL) {
+      setError('La sincronización todavía no está configurada.')
+      return
+    }
+    if (!navigator.onLine) {
+      setError('Sin conexión: el reporte permanece guardado para reintentar después.')
+      return
+    }
+
+    setIsSyncing(true)
+    try {
+      const summary = await syncLocalRapidReports()
+      setMessage(summary.message)
+      await refreshReports()
+    } catch {
+      setError('No se pudieron sincronizar los reportes. Siguen guardados localmente.')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <div className="rapid-shell">
       <header className="rapid-header">
@@ -159,7 +191,11 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
 
       <main className="rapid-main">
         <Notice>
-          <strong>Prototipo offline.</strong> Por ahora, el reporte se guarda únicamente en este dispositivo. No se publica, no se comparte y no reemplaza a los servicios de emergencia.
+          {REPORTS_API_URL ? (
+            <><strong>Envío manual a API de prueba.</strong> Los reportes permanecen en este dispositivo hasta que elijas sincronizarlos. Un reporte recibido todavía no está verificado ni reemplaza a los servicios de emergencia.</>
+          ) : (
+            <><strong>Prototipo offline.</strong> Por ahora, el reporte se guarda únicamente en este dispositivo. No se publica, no se comparte y no reemplaza a los servicios de emergencia.</>
+          )}
         </Notice>
         {error && <Notice tone="warning"><AlertTriangle size={16} aria-hidden="true" /> {error}</Notice>}
         {message && <Notice tone="success"><Check size={16} aria-hidden="true" /> {message}</Notice>}
@@ -241,10 +277,18 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
 
           <div className="rapid-submit-row">
             <div className="rapid-submit-note"><WifiOff size={17} aria-hidden="true" /><span>Funciona sin conexión. Se guardará localmente.</span></div>
-            <button className="button primary" type="submit" disabled={isSaving}>
-              <CloudOff size={18} aria-hidden="true" />
-              {isSaving ? 'Guardando…' : 'Guardar reporte'}
-            </button>
+            <div className="rapid-submit-actions">
+              {REPORTS_API_URL && (
+                <button className="button secondary" type="button" onClick={() => void syncReports()} disabled={isSyncing}>
+                  <CloudUpload size={18} aria-hidden="true" />
+                  {isSyncing ? 'Sincronizando…' : 'Sincronizar guardados'}
+                </button>
+              )}
+              <button className="button primary" type="submit" disabled={isSaving}>
+                <CloudOff size={18} aria-hidden="true" />
+                {isSaving ? 'Guardando…' : 'Guardar reporte'}
+              </button>
+            </div>
           </div>
         </form>
 
@@ -254,7 +298,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
               <p className="eyebrow">Solo en este dispositivo</p>
               <h2 id="rapid-recent-title">Reportes recientes</h2>
             </div>
-            <span className="tiny-label">{reports.length} guardado{reports.length === 1 ? '' : 's'}</span>
+            <span className="tiny-label">{reports.length === totalReports ? `${totalReports} guardado${totalReports === 1 ? '' : 's'}` : `${reports.length} de ${totalReports} recientes`}</span>
           </div>
           {reports.length === 0 ? (
             <div className="rapid-empty"><CircleAlert size={22} aria-hidden="true" /><p>Aquí aparecerán los reportes que guardes. No son visibles para otras personas.</p></div>
@@ -264,7 +308,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
                 <li key={report.id}>
                   <span className="rapid-report-list-icon"><UserRound size={17} aria-hidden="true" /></span>
                   <span><strong>{getCategoryLabel(report.category)}</strong><small>{getSeverityLabel(report.severity)} · {formatTimestamp(report.createdAt)} · {reportLocationLabel(report.locationCell)}</small></span>
-                  <span className="rapid-local-badge">Local</span>
+                  <span className="rapid-local-badge">{getRapidReportStatusLabel(report.status)}</span>
                 </li>
               ))}
             </ul>
@@ -274,7 +318,7 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
 
       <footer className="footer">
         <span>Barrio 24 · reporte local</span>
-        <span>Sin API conectada · sin publicación</span>
+        <span>{REPORTS_API_URL ? 'API de prueba · envío manual' : 'Sin API conectada · sin publicación'}</span>
       </footer>
     </div>
   )

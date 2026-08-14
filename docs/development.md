@@ -27,7 +27,7 @@ npm run typecheck:api
 4. La operación permanece después de cerrar y reabrir la aplicación.
 5. La cola puede marcarse como procesada localmente mientras no existe backend.
 
-La sincronización actual es deliberadamente una simulación. No debe confundirse con una confirmación de servidor ni usarse con información real.
+La cola sintética de la pantalla inicial sigue siendo deliberadamente una simulación. No debe confundirse con una confirmación de servidor.
 
 ## Qué demuestra la Fase 1
 
@@ -49,7 +49,11 @@ La tarjeta no sincroniza información médica, no reemplaza una evaluación prof
 4. El reporte queda en IndexedDB con estado `local-only`.
 5. La interfaz no afirma que el reporte se haya enviado, publicado o verificado.
 
-Esta etapa todavía no contiene un Worker conectado, D1 configurado, Queue, moderación, consulta pública ni sincronización. Existe un esqueleto aislado en `api/` para revisión posterior. La ubicación requiere validación manual en dispositivos reales antes de habilitar cualquier flujo remoto.
+El Worker y D1 de staging ya existen y fueron validados con smoke tests remotos. La aplicación puede activar un envío manual si `VITE_REPORTS_API_URL` está configurada; sin esa variable permanece completamente local. No hay feed público, no se envía información médica ni se acepta texto libre, fotos o coordenadas exactas.
+
+Los reportes nuevos se guardan como `unverified` en el API. La retención inicial es de 30 días y el Worker de staging tiene una tarea diaria de eliminación. La ubicación requiere validación manual en dispositivos reales antes de habilitar un flujo remoto para usuarios.
+
+Para probar el envío manual en local, copia `.env.example` a `.env.local`, descomenta `VITE_REPORTS_API_URL` y ejecuta `npm run dev` o `npm run build && npm run preview`. No uses datos reales en staging.
 
 ## Revisión antes de commit
 

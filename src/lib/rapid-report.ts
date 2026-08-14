@@ -50,6 +50,7 @@ export const RAPID_REPORT_CATEGORIES = [
 
 export type RapidReportCategory = (typeof RAPID_REPORT_CATEGORIES)[number]['id']
 export type RapidReportSeverity = 'observed' | 'attention' | 'immediate-risk'
+export type RapidReportStatus = 'local-only' | 'pending' | 'unverified' | 'sync-failed'
 
 export const RAPID_REPORT_SEVERITIES: Array<{
   id: RapidReportSeverity
@@ -80,7 +81,7 @@ export interface RapidReport {
   severity: RapidReportSeverity
   locationCell: string | null
   createdAt: number
-  status: 'local-only'
+  status: RapidReportStatus
 }
 
 export function getCategoryLabel(category: RapidReportCategory): string {
@@ -89,6 +90,13 @@ export function getCategoryLabel(category: RapidReportCategory): string {
 
 export function getSeverityLabel(severity: RapidReportSeverity): string {
   return RAPID_REPORT_SEVERITIES.find((item) => item.id === severity)?.label ?? severity
+}
+
+export function getRapidReportStatusLabel(status: RapidReportStatus): string {
+  if (status === 'pending') return 'Enviando…'
+  if (status === 'unverified') return 'Recibido · no verificado'
+  if (status === 'sync-failed') return 'Pendiente de reintento'
+  return 'Solo en este dispositivo'
 }
 
 export function getApproximateLocationCell(latitude: number, longitude: number, gridSize = 0.01): string {
@@ -156,5 +164,8 @@ export function isRapidReport(value: unknown): value is RapidReport {
     && typeof report.createdAt === 'number'
     && Number.isSafeInteger(report.createdAt)
     && report.createdAt > 0
-    && report.status === 'local-only'
+    && (report.status === 'local-only'
+      || report.status === 'pending'
+      || report.status === 'unverified'
+      || report.status === 'sync-failed')
 }

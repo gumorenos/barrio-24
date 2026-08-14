@@ -1,6 +1,6 @@
-# Barrio 24 Reports API — draft
+# Barrio 24 Reports API — staging
 
-Este Worker es un esqueleto de staging. No está conectado a la PWA, no tiene un `wrangler.toml` real y no debe desplegarse hasta completar revisión, pruebas de integración y configuración de D1.
+Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No existe feed público ni moderación operativa todavía; `unverified` significa recibido, no confirmado.
 
 ## Incluye
 
@@ -9,20 +9,22 @@ Este Worker es un esqueleto de staging. No está conectado a la PWA, no tiene un
 - Validación de esquema y payload máximo de 2 KB.
 - Celdas geográficas aproximadas; no acepta coordenadas exactas.
 - Inserción idempotente por `event_id`.
-- Estado inicial `received`, que no significa `verified`.
+- Estado inicial `unverified`, que significa recibido pero no verificado.
 - CORS restringible mediante `ALLOWED_ORIGIN`.
-- Migración D1 inicial.
+- Migraciones D1 `0001_reports.sql` y `0002_unverified_reports.sql`.
+- Límite inicial de 10 solicitudes por cliente por ventana de 60 segundos mediante Rate Limiting de Cloudflare.
+- Eliminación programada de reportes con más de 30 días.
 
-## Aún falta antes de staging
+## Aún falta antes de conectar usuarios
 
 - Revisar el contrato con el dueño del producto.
-- Añadir límites de frecuencia y protección contra abuso.
-- Definir retención, expiración y moderación.
-- Decidir si la persistencia inicial será directa o mediante Queue.
-- Probar duplicados, payloads inválidos, CORS y recuperación de D1.
-- Crear D1 de staging y completar el identificador real.
-- Conectar el cliente solo después de probar el API.
+- Validar Rate Limiting y el cron de retención en el Worker desplegado.
+- Definir moderación operativa y eventual feed público.
+- Decidir si la persistencia inicial seguirá siendo directa o pasará a Queue.
+- Probar la sincronización manual desde la PWA en staging.
+- Hacer QA en dispositivos físicos.
+- Conectar usuarios reales solo después de una revisión de seguridad y privacidad.
 
 ## Configuración pendiente
 
-Copiar `wrangler.toml.example` como configuración de staging, reemplazar el origen permitido y el `database_id`, y ejecutar la migración desde un entorno autorizado. No se incluyen credenciales ni identificadores reales en el repositorio.
+Copiar `wrangler.toml.example` como configuración de staging, reemplazar el origen permitido, el `database_id` y el namespace de Rate Limiting, y ejecutar las migraciones desde un entorno autorizado. No se incluyen credenciales ni identificadores reales en el repositorio.

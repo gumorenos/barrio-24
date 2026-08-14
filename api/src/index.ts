@@ -14,6 +14,7 @@ const REPORT_SEVERITIES = new Set(['observed', 'attention', 'immediate-risk'])
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const LOCATION_CELL_PATTERN = /^(-?\d{1,3}\.\d{2}),(-?\d{1,3}\.\d{2})$/
 const MAX_BODY_BYTES = 2_048
+const RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
 
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement
@@ -25,9 +26,14 @@ interface D1Database {
   prepare(query: string): D1PreparedStatement
 }
 
+interface RateLimit {
+  limit(input: { key: string }): Promise<{ success: boolean }>
+}
+
 interface Env {
   DB: D1Database
   ALLOWED_ORIGIN?: string
+  REPORTS_RATE_LIMITER?: RateLimit
 }
 
 interface ReportPayload {
@@ -58,8 +64,12 @@ function headersFor(request: Request, env: Env): Headers {
   return headers
 }
 
-function json(request: Request, env: Env, data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: headersFor(request, env) })
+function json(request: Request, env: Env, data: unknown, status = 200, extraHeaders?: HeadersInit): Response {
+  const headers = headersFor(request, env)
+  if (extraHeaders) {
+    new Headers(extraHeaders).forEach((value, key) => headers.set(key, value))
+  }
+  return new Response(JSON.stringify(data), { status, headers })
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -104,6 +114,18 @@ function isAllowedOrigin(request: Request, env: Env): boolean {
   return !origin || !env.ALLOWED_ORIGIN || origin === env.ALLOWED_ORIGIN
 }
 
+function rateLimitKey(request: Request): string {
+  const clientId = request.headers.get('X-Client-Id')?.trim()
+  if (clientId && UUID_PATTERN.test(clientId)) return `client:${clientId}`
+  return `ip:${request.headers.get('CF-Connecting-IP') ?? 'anonymous'}`
+}
+
+async function isRateLimited(request: Request, env: Env): Promise<boolean> {
+  if (!env.REPORTS_RATE_LIMITER) return false
+  const result = await env.REPORTS_RATE_LIMITER.limit({ key: rateLimitKey(request) })
+  return !result.success
+}
+
 async function createReport(request: Request, env: Env): Promise<Response> {
   const body = await request.text()
   if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) {
@@ -124,7 +146,7 @@ async function createReport(request: Request, env: Env): Promise<Response> {
     const result = await env.DB.prepare(
       `INSERT OR IGNORE INTO reports
         (event_id, schema_version, category, severity, location_cell, observed_at, received_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'received')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'unverified')`,
     ).bind(
       payload.event_id,
       payload.schema_version,
@@ -142,14 +164,14 @@ async function createReport(request: Request, env: Env): Promise<Response> {
       ).bind(payload.event_id).first<StoredReport>()
       return json(request, env, {
         event_id: payload.event_id,
-        status: existing?.status ?? 'received',
+        status: existing?.status ?? 'unverified',
         duplicate: true,
       }, 409)
     }
 
     return json(request, env, {
       event_id: payload.event_id,
-      status: 'received',
+      status: 'unverified',
       verified: false,
     }, 202)
   } catch {
@@ -165,7 +187,7 @@ export default {
     if (request.method === 'OPTIONS') {
       const response = new Response(null, { status: 204, headers: headersFor(request, env) })
       response.headers.set('access-control-allow-methods', 'POST, GET, OPTIONS')
-      response.headers.set('access-control-allow-headers', 'content-type')
+      response.headers.set('access-control-allow-headers', 'content-type, x-client-id')
       response.headers.set('access-control-max-age', '600')
       return response
     }
@@ -175,9 +197,20 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reports') {
+      if (await isRateLimited(request, env)) {
+        return json(request, env, { error: 'rate_limited' }, 429, { 'retry-after': '60' })
+      }
       return createReport(request, env)
     }
 
     return json(request, env, { error: 'not_found' }, 404)
+  },
+
+  async scheduled(_controller: { scheduledTime: number }, env: Env): Promise<void> {
+    const cutoff = Date.now() - RETENTION_MS
+    const result = await env.DB.prepare(
+      'DELETE FROM reports WHERE received_at < ?',
+    ).bind(cutoff).run()
+    if (!result.success) throw new Error('retention_cleanup_failed')
   },
 }
