@@ -92,11 +92,29 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
     setMessage('')
   }
 
+  function locationErrorMessage(error: GeolocationPositionError): string {
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        return 'Safari no tiene permiso para usar la ubicación. Actívala en Ajustes > Privacidad y seguridad > Localización > Safari y vuelve a intentarlo.'
+      case error.POSITION_UNAVAILABLE:
+        return 'El iPhone no pudo determinar una ubicación. Comprueba que Localización esté activa, prueba con Wi‑Fi o datos móviles y vuelve a intentarlo.'
+      case error.TIMEOUT:
+        return 'La ubicación tardó demasiado en responder. Mantén abierta esta página, espera unos segundos y vuelve a intentarlo.'
+      default:
+        return 'No se obtuvo la ubicación. Puedes guardar el reporte sin ella o volver a intentarlo.'
+    }
+  }
+
   function requestLocation() {
     clearFeedback()
     if (!navigator.geolocation) {
       setLocationStatus('unavailable')
       setError('Este navegador no ofrece ubicación. Puedes guardar el reporte sin ella.')
+      return
+    }
+    if (!window.isSecureContext) {
+      setLocationStatus('unavailable')
+      setError('La ubicación solo funciona en una conexión segura. Abre el preview en Safari usando su dirección https://.')
       return
     }
 
@@ -113,11 +131,11 @@ export default function RapidReportScreen({ onBack }: RapidReportScreenProps) {
           setError('No se pudo convertir la ubicación en una zona aproximada.')
         }
       },
-      () => {
+      (positionError) => {
         setLocationStatus('unavailable')
-        setError('No se obtuvo la ubicación. Puedes guardar el reporte sin ella.')
+        setError(locationErrorMessage(positionError))
       },
-      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 8_000 },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 15_000 },
     )
   }
 
