@@ -5,8 +5,10 @@ compatibility_date = "2026-08-13"
 [vars]
 ALLOWED_ORIGIN = "https://REPLACE-WITH-PAGES-PREVIEW.example"
 
-# Configure the read-only operations secret out of band; do not add it here:
-# wrangler secret put REPORTS_OPERATIONS_TOKEN --config /path/to/staging-wrangler.toml
+# Configure these values out of band in the Worker environment; do not commit real values:
+# ACCESS_TEAM_DOMAIN = "https://REPLACE-WITH-TEAM.cloudflareaccess.com"
+# ACCESS_AUDIENCE = "REPLACE-WITH-ACCESS-AUD"
+# ACCESS_OPERATOR_EMAILS = "operator@example.com"
 
 [[d1_databases]]
 binding = "DB"

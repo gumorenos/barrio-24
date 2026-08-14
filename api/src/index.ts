@@ -1,3 +1,12 @@
+import { authorizeAccess, type AccessIdentity } from './access'
+import {
+  isModerationAction,
+  isModerationStatus,
+  transitionModerationStatus,
+  type ModerationAction,
+  type ModerationStatus,
+} from './moderation'
+
 const REPORT_CATEGORIES = new Set([
   'injured-person',
   'trapped-person',
@@ -14,8 +23,12 @@ const REPORT_SEVERITIES = new Set(['observed', 'attention', 'immediate-risk'])
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const LOCATION_CELL_PATTERN = /^(-?\d{1,3}\.\d{2}),(-?\d{1,3}\.\d{2})$/
 const MAX_BODY_BYTES = 2_048
+const MAX_MODERATION_BODY_BYTES = 4_096
+const MAX_MODERATION_REASON_LENGTH = 500
 const RETENTION_DAYS = 30
 const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1_000
+const AUDIT_RETENTION_DAYS = 180
+const AUDIT_RETENTION_MS = AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1_000
 
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement
@@ -26,6 +39,7 @@ interface D1PreparedStatement {
 
 interface D1Database {
   prepare(query: string): D1PreparedStatement
+  batch(statements: D1PreparedStatement[]): Promise<Array<{ success: boolean; meta?: { changes?: number } }>>
 }
 
 interface RateLimit {
@@ -36,7 +50,9 @@ interface Env {
   DB: D1Database
   ALLOWED_ORIGIN?: string
   REPORTS_RATE_LIMITER?: RateLimit
-  REPORTS_OPERATIONS_TOKEN?: string
+  ACCESS_TEAM_DOMAIN?: string
+  ACCESS_AUDIENCE?: string
+  ACCESS_OPERATOR_EMAILS?: string
 }
 
 interface ReportPayload {
@@ -51,6 +67,15 @@ interface ReportPayload {
 interface StoredReport extends Record<string, unknown> {
   event_id: string
   status: string
+  last_moderation_event_id?: string | null
+}
+
+interface StoredModerationEvent extends Record<string, unknown> {
+  id: string
+  event_id: string
+  action: ModerationAction
+  from_status: ModerationStatus
+  to_status: ModerationStatus
 }
 
 interface OperationalReport extends Record<string, unknown> {
@@ -74,7 +99,6 @@ const OPERATIONAL_STATUSES = new Set([
 ])
 const DEFAULT_OPERATIONAL_LIMIT = 50
 const MAX_OPERATIONAL_LIMIT = 100
-const MIN_OPERATIONS_TOKEN_LENGTH = 32
 const OPERATIONAL_CURSOR_PATTERN = /^(\d+):([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
 function headersFor(request: Request, env: Env): Headers {
@@ -255,25 +279,25 @@ function operationalCursorFor(report: OperationalReport): string {
   return `${report.received_at}:${report.event_id}`
 }
 
-function operationsToken(env: Env): string | null {
-  const configuredToken = env.REPORTS_OPERATIONS_TOKEN?.trim()
-  return configuredToken && configuredToken.length >= MIN_OPERATIONS_TOKEN_LENGTH ? configuredToken : null
+function accessFailureResponse(reason: Exclude<Awaited<ReturnType<typeof authorizeAccess>>, { ok: true }>['reason']): Response {
+  if (reason === 'not-configured') return operationsJson({ error: 'not_found' }, 404)
+  if (reason === 'missing-token') return operationsJson({ error: 'access_required' }, 403)
+  if (reason === 'not-allowed') return operationsJson({ error: 'access_forbidden' }, 403)
+  return operationsJson({ error: 'access_invalid' }, 403)
 }
 
-function authorizeOperations(request: Request, env: Env): Response | null {
-  const configuredToken = operationsToken(env)
-  if (!configuredToken) return operationsJson({ error: 'not_found' }, 404)
-
-  const authorization = request.headers.get('Authorization') ?? ''
-  if (authorization !== `Bearer ${configuredToken}`) {
-    return operationsJson({ error: 'unauthorized' }, 401, { 'www-authenticate': 'Bearer' })
-  }
-  return null
+async function authorizeOperations(request: Request, env: Env): Promise<AccessIdentity | Response> {
+  const result = await authorizeAccess(request, {
+    teamDomain: env.ACCESS_TEAM_DOMAIN,
+    audience: env.ACCESS_AUDIENCE,
+    operatorEmails: env.ACCESS_OPERATOR_EMAILS,
+  })
+  return result.ok ? result.identity : accessFailureResponse(result.reason)
 }
 
 async function listOperationalReports(request: Request, env: Env): Promise<Response> {
-  const authorizationError = authorizeOperations(request, env)
-  if (authorizationError) return authorizationError
+  const operator = await authorizeOperations(request, env)
+  if (operator instanceof Response) return operator
 
   const url = new URL(request.url)
   const status = url.searchParams.get('status')
@@ -327,8 +351,8 @@ interface OperationalStatusSummary extends Record<string, unknown> {
 }
 
 async function getOperationalSummary(request: Request, env: Env): Promise<Response> {
-  const authorizationError = authorizeOperations(request, env)
-  if (authorizationError) return authorizationError
+  const operator = await authorizeOperations(request, env)
+  if (operator instanceof Response) return operator
 
   try {
     const result = await env.DB.prepare(
@@ -361,6 +385,159 @@ async function getOperationalSummary(request: Request, env: Env): Promise<Respon
   }
 }
 
+interface ModerationDecisionInput {
+  action: ModerationAction
+  expected_status: ModerationStatus
+  reason: string
+}
+
+function parseModerationDecision(value: unknown): ModerationDecisionInput | null {
+  if (!isObject(value)) return null
+  const allowedKeys = new Set(['action', 'expected_status', 'reason'])
+  if (Object.keys(value).some((key) => !allowedKeys.has(key))) return null
+  if (!isModerationAction(value.action) || !isModerationStatus(value.expected_status)) return null
+  if (typeof value.reason !== 'string') return null
+  const reason = value.reason.trim()
+  if (reason.length === 0 || reason.length > MAX_MODERATION_REASON_LENGTH) return null
+  return {
+    action: value.action,
+    expected_status: value.expected_status,
+    reason,
+  }
+}
+
+function parseUuidHeader(request: Request, name: string, required: boolean): string | null | undefined {
+  const value = request.headers.get(name)?.trim()
+  if (!value) return required ? undefined : null
+  return UUID_PATTERN.test(value) ? value : undefined
+}
+
+function moderationEventIdFromPath(url: URL): string | null {
+  const match = /^\/v1\/ops\/reports\/([^/]+)\/decision$/.exec(url.pathname)
+  if (!match) return null
+  try {
+    const eventId = decodeURIComponent(match[1])
+    return UUID_PATTERN.test(eventId) ? eventId : null
+  } catch {
+    return null
+  }
+}
+
+async function applyModerationDecision(
+  request: Request,
+  env: Env,
+  eventId: string,
+  identity: AccessIdentity,
+): Promise<Response> {
+  const body = await request.text()
+  if (new TextEncoder().encode(body).byteLength > MAX_MODERATION_BODY_BYTES) {
+    return operationsJson({ error: 'payload_too_large' }, 413)
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return operationsJson({ error: 'invalid_json' }, 400)
+  }
+
+  const decision = parseModerationDecision(parsed)
+  if (!decision) return operationsJson({ error: 'invalid_decision' }, 400)
+
+  const idempotencyKey = parseUuidHeader(request, 'Idempotency-Key', true)
+  if (!idempotencyKey) return operationsJson({ error: 'invalid_idempotency_key' }, 400)
+  const requestId = parseUuidHeader(request, 'X-Request-Id', false)
+  if (requestId === undefined) return operationsJson({ error: 'invalid_request_id' }, 400)
+  const resolvedRequestId = requestId ?? crypto.randomUUID()
+
+  try {
+    const previous = await env.DB.prepare(
+      `SELECT id, event_id, action, from_status, to_status
+       FROM report_moderation_events
+       WHERE idempotency_key = ?`,
+    ).bind(idempotencyKey).first<StoredModerationEvent>()
+    if (previous) {
+      if (previous.event_id !== eventId) return operationsJson({ error: 'idempotency_conflict' }, 409)
+      return operationsJson({
+        event_id: previous.event_id,
+        action: previous.action,
+        from_status: previous.from_status,
+        status: previous.to_status,
+        audit_id: previous.id,
+        request_id: resolvedRequestId,
+        idempotent: true,
+      })
+    }
+
+    const report = await env.DB.prepare(
+      'SELECT event_id, status, last_moderation_event_id FROM reports WHERE event_id = ?',
+    ).bind(eventId).first<StoredReport>()
+    if (!report) return operationsJson({ error: 'report_not_found' }, 404)
+    if (!isModerationStatus(report.status)) return operationsJson({ error: 'invalid_stored_status' }, 409)
+    if (report.status !== decision.expected_status) {
+      return operationsJson({ error: 'status_conflict', current_status: report.status }, 409)
+    }
+
+    const nextStatus = transitionModerationStatus(report.status, decision.action)
+    if (!nextStatus) return operationsJson({ error: 'invalid_transition' }, 409)
+
+    const auditId = crypto.randomUUID()
+    const occurredAt = Date.now()
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE reports
+         SET status = ?, last_moderation_event_id = ?
+         WHERE event_id = ? AND status = ?`,
+      ).bind(nextStatus, auditId, eventId, report.status),
+      env.DB.prepare(
+        `INSERT INTO report_moderation_events
+          (id, event_id, action, from_status, to_status, actor_id, reason, occurred_at, request_id, idempotency_key)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (
+           SELECT 1 FROM reports
+           WHERE event_id = ? AND status = ? AND last_moderation_event_id = ?
+         )`,
+      ).bind(
+        auditId,
+        eventId,
+        decision.action,
+        report.status,
+        nextStatus,
+        identity.subject,
+        decision.reason,
+        occurredAt,
+        resolvedRequestId,
+        idempotencyKey,
+        eventId,
+        nextStatus,
+        auditId,
+      ),
+    ])
+
+    if ((results[0]?.meta?.changes ?? 0) !== 1) {
+      const current = await env.DB.prepare(
+        'SELECT status FROM reports WHERE event_id = ?',
+      ).bind(eventId).first<StoredReport>()
+      return operationsJson({ error: 'status_conflict', current_status: current?.status ?? null }, 409)
+    }
+    if ((results[1]?.meta?.changes ?? 0) !== 1) {
+      return operationsJson({ error: 'storage_unavailable' }, 503, { 'retry-after': '60' })
+    }
+
+    return operationsJson({
+      event_id: eventId,
+      action: decision.action,
+      from_status: report.status,
+      status: nextStatus,
+      audit_id: auditId,
+      request_id: resolvedRequestId,
+      idempotent: false,
+    })
+  } catch {
+    return operationsJson({ error: 'storage_unavailable' }, 503, { 'retry-after': '60' })
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (!isAllowedOrigin(request, env)) return json(request, env, { error: 'origin_not_allowed' }, 403)
@@ -386,6 +563,13 @@ export default {
       return getOperationalSummary(request, env)
     }
 
+    const moderationEventId = moderationEventIdFromPath(url)
+    if (request.method === 'POST' && moderationEventId) {
+      const operator = await authorizeOperations(request, env)
+      if (operator instanceof Response) return operator
+      return applyModerationDecision(request, env, moderationEventId, operator)
+    }
+
     if (request.method === 'POST' && url.pathname === '/v1/reports') {
       const rateLimit = await checkRateLimit(request, env)
       if (rateLimit.unavailable) {
@@ -406,5 +590,11 @@ export default {
       'DELETE FROM reports WHERE received_at < ?',
     ).bind(cutoff).run()
     if (!result.success) throw new Error('retention_cleanup_failed')
+
+    const auditCutoff = Date.now() - AUDIT_RETENTION_MS
+    const auditResult = await env.DB.prepare(
+      'DELETE FROM report_moderation_events WHERE occurred_at < ?',
+    ).bind(auditCutoff).run()
+    if (!auditResult.success) throw new Error('audit_retention_cleanup_failed')
   },
 }

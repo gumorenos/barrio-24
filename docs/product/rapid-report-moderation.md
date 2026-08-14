@@ -1,6 +1,6 @@
 # Moderación de Reporte 60 segundos
 
-Este documento define la base de moderación para staging y para una futura operación controlada. Todavía no existe un endpoint que cambie estados ni un feed público.
+Este documento define la base de moderación para staging y para una futura operación controlada. No existe un feed público. El Worker ya contiene las rutas de decisión, pero permanecen cerradas hasta configurar y validar Cloudflare Access en staging.
 
 ## Estados y transiciones
 
@@ -40,15 +40,14 @@ Cada cambio futuro debe registrar, como mínimo:
 
 La auditoría no debe copiar texto libre ciudadano, datos médicos, coordenadas exactas ni credenciales. El `event_id` y la celda aproximada solo deben exponerse a operadores autorizados.
 
-## Bloqueos antes de implementar mutaciones
+## Condiciones para habilitar mutaciones
 
-La consulta interna actual (`/v1/ops/reports` y `/v1/ops/summary`) es solo lectura y queda desactivada si falta `REPORTS_OPERATIONS_TOKEN`. Antes de añadir `PATCH` o acciones equivalentes todavía hay que decidir:
+Las rutas internas (`/v1/ops/reports`, `/v1/ops/summary` y `POST /v1/ops/reports/:event_id/decision`) fallan cerradas si falta la configuración de Access. Antes de habilitarlas en staging hay que verificar:
 
-1. quiénes pueden verificar y resolver;
-2. si se usará Cloudflare Access, identidad externa u otro proveedor;
-3. cómo se rotan credenciales y se revocan operadores;
-4. dónde se almacena la auditoría y cuánto tiempo;
-5. cómo se resuelven dos decisiones concurrentes sobre el mismo reporte;
-6. qué vista agregada puede hacerse pública y con qué umbral de densidad.
+1. La aplicación de Access cubre solo `/v1/ops/*`; el endpoint ciudadano no queda detrás de Access.
+2. El Worker valida la firma, issuer, audience y expiración de `Cf-Access-Jwt-Assertion`, además de una allowlist de correos fuera de Git.
+3. La migración `0004_moderation_audit.sql` está aplicada únicamente en la D1 de staging.
+4. El cambio de estado y la auditoría pasan el QA de concurrencia e idempotencia.
+5. La retención de auditoría y la revocación de operadores están documentadas.
 
-Hasta cerrar esas decisiones, cualquier ruta de mutación sería una superficie administrativa prematura.
+No se habilita un borrado administrativo, un feed público ni una vista de ubicación exacta. `REPORTS_OPERATIONS_TOKEN` queda fuera del diseño; la autorización administrativa depende de Cloudflare Access.

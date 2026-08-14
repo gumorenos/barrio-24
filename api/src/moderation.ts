@@ -17,6 +17,14 @@ export const MODERATION_ACTIONS = [
 
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number]
 
+export function isModerationStatus(value: unknown): value is ModerationStatus {
+  return typeof value === 'string' && MODERATION_STATUSES.includes(value as ModerationStatus)
+}
+
+export function isModerationAction(value: unknown): value is ModerationAction {
+  return typeof value === 'string' && MODERATION_ACTIONS.includes(value as ModerationAction)
+}
+
 const TRANSITIONS: Record<ModerationStatus, Partial<Record<ModerationAction, ModerationStatus>>> = {
   unverified: {
     verify: 'verified',

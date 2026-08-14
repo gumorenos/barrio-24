@@ -51,23 +51,25 @@ El cliente impone un timeout nominal de 11,5 segundos por solicitud para mantene
 
 ## Consulta operativa de staging
 
-Existe una ruta de lectura interna para inspeccionar el estado de los reportes recibidos sin crear todavía un feed público ni una pantalla de moderación:
+Existe una ruta interna para inspeccionar y moderar reportes recibidos sin crear todavía un feed público:
 
 ```text
 GET /v1/ops/reports?status=unverified&limit=50&cursor=...
-Authorization: Bearer <REPORTS_OPERATIONS_TOKEN>
+Cf-Access-Jwt-Assertion: <JWT-inyectado-por-Cloudflare-Access>
 ```
 
-- El secreto se configura fuera de Git mediante un secreto del Worker. Si no existe, la ruta queda desactivada y responde `404`.
+- Cloudflare Access se configura solo para `/v1/ops/*`; el endpoint público `POST /v1/reports` no debe quedar detrás de Access.
+- El Worker valida firma, issuer, audience y expiración del JWT, y aplica una allowlist de operadores configurada fuera de Git.
 - La ruta no habilita CORS y no se integra en la PWA.
 - Devuelve únicamente los campos mínimos ya aceptados por el contrato ciudadano: `event_id`, categoría, gravedad, celda aproximada, fechas y estado.
 - `limit` está acotado a 100 y la paginación usa un cursor estable por `received_at` y `event_id`.
 - Los errores de autenticación no revelan datos; los fallos de D1 responden `503`.
-- No hay mutaciones operativas. Los cambios a `verified`, `duplicate` o `resolved` quedan pendientes de definir con roles, auditoría y autenticación fuerte.
+- La decisión se realiza mediante `POST /v1/ops/reports/:event_id/decision`, con estado esperado, motivo obligatorio y `Idempotency-Key` UUID.
+- El cambio de estado y su auditoría se escriben en una transacción D1; los reportes no pueden retroceder de estado.
 
 También existe `GET /v1/ops/summary` con el total de reportes, distribución por estado, última recepción y días de retención. Es una respuesta agregada: no incluye eventos ni celdas geográficas.
 
-Las transiciones previstas y los requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md), pero todavía no están expuestos como mutaciones del Worker.
+Las transiciones y requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md). Las mutaciones permanecen desactivadas hasta configurar y validar Access en staging.
 
 ## Estado del reporte
 
