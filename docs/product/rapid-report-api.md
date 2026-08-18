@@ -69,6 +69,8 @@ Cf-Access-Jwt-Assertion: <JWT-inyectado-por-Cloudflare-Access>
 
 También existe `GET /v1/ops/summary` con el total de reportes, distribución por estado, última recepción y días de retención. Es una respuesta agregada: no incluye eventos ni celdas geográficas.
 
+`GET /v1/ops/reports/:event_id/history` devuelve hasta 100 eventos de moderación del reporte, ordenados del más reciente al más antiguo. Solo está disponible para operadores autorizados y devuelve la auditoría necesaria para revisar actor, transición, motivo y correlación; no devuelve datos ciudadanos adicionales.
+
 Las transiciones y requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md). Las mutaciones permanecen desactivadas hasta configurar y validar Access en staging.
 
 ## Estado del reporte

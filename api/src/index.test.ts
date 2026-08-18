@@ -74,6 +74,14 @@ class MockD1Statement {
   }
 
   async all<T extends Record<string, unknown>>(): Promise<{ results: T[] }> {
+    if (this.query.includes('FROM report_moderation_events') && this.query.includes('WHERE event_id = ?')) {
+      const eventId = String(this.values[0])
+      const events = [...this.database.auditEvents.values()]
+        .filter((audit) => audit.event_id === eventId)
+        .sort((left, right) => right.occurred_at - left.occurred_at || right.id.localeCompare(left.id))
+      return { results: events as unknown as T[] }
+    }
+
     if (this.query.includes('GROUP BY status')) {
       const summary = new Map<string, { count: number; latest_received_at: number | null }>()
       for (const report of this.database.reports.values()) {
@@ -519,7 +527,25 @@ describe('Worker de Reporte 60 segundos', () => {
 
     const repeated = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/decision`, decisionInit), env)
     expect(repeated.status).toBe(200)
-    await expect(repeated.json()).resolves.toMatchObject({ idempotent: true, status: 'verified' })
+    await expect(repeated.json()).resolves.toMatchObject({
+      idempotent: true,
+      status: 'verified',
+      request_id: '00000000-0000-4000-8000-000000000098',
+    })
+
+    const history = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/history`), env)
+    expect(history.status).toBe(200)
+    await expect(history.json()).resolves.toMatchObject({
+      event_id: EVENT_ID,
+      events: [{
+        event_id: EVENT_ID,
+        action: 'verify',
+        from_status: 'unverified',
+        to_status: 'verified',
+        actor_id: 'operator-sub',
+        request_id: '00000000-0000-4000-8000-000000000098',
+      }],
+    })
 
     const stale = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/decision`, {
       ...decisionInit,
@@ -527,5 +553,55 @@ describe('Worker de Reporte 60 segundos', () => {
     }), env)
     expect(stale.status).toBe(409)
     await expect(stale.json()).resolves.toMatchObject({ error: 'status_conflict', current_status: 'verified' })
+  })
+
+  it('rechaza headers de idempotencia inválidos antes de tocar la base', async () => {
+    accessState.result = { ok: true, identity: { subject: 'operator-sub', email: 'operator@example.com' } }
+    const env = createEnv()
+    env.DB.reports.set(EVENT_ID, {
+      event_id: EVENT_ID,
+      schema_version: 1,
+      category: 'blocked-street',
+      severity: 'attention',
+      location_cell: null,
+      observed_at: '2026-08-14T00:00:00.000Z',
+      status: 'unverified',
+      received_at: 300,
+      last_moderation_event_id: null,
+    })
+
+    const missingKey = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', expected_status: 'unverified', reason: 'QA' }),
+    }), env)
+    expect(missingKey.status).toBe(400)
+    await expect(missingKey.json()).resolves.toMatchObject({ error: 'invalid_idempotency_key' })
+    expect(env.DB.reports.get(EVENT_ID)?.status).toBe('unverified')
+
+    const invalidRequestId = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/decision`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': '00000000-0000-4000-8000-000000000099',
+        'x-request-id': 'not-a-uuid',
+      },
+      body: JSON.stringify({ action: 'verify', expected_status: 'unverified', reason: 'QA' }),
+    }), env)
+    expect(invalidRequestId.status).toBe(400)
+    await expect(invalidRequestId.json()).resolves.toMatchObject({ error: 'invalid_request_id' })
+    expect(env.DB.reports.get(EVENT_ID)?.status).toBe('unverified')
+  })
+
+  it('protege el historial ante una sesión no autorizada y permite un evento vacío', async () => {
+    const env = createEnv()
+    accessState.result = { ok: false, reason: 'missing-token' }
+    const unauthorized = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/history`), env)
+    expect(unauthorized.status).toBe(403)
+
+    accessState.result = { ok: true, identity: { subject: 'operator-sub', email: 'operator@example.com' } }
+    const empty = await worker.fetch(request(`/v1/ops/reports/${EVENT_ID}/history`), env)
+    expect(empty.status).toBe(200)
+    await expect(empty.json()).resolves.toEqual({ event_id: EVENT_ID, events: [] })
   })
 })

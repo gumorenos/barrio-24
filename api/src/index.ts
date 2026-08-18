@@ -76,6 +76,7 @@ interface StoredModerationEvent extends Record<string, unknown> {
   action: ModerationAction
   from_status: ModerationStatus
   to_status: ModerationStatus
+  request_id: string
 }
 
 interface OperationalReport extends Record<string, unknown> {
@@ -385,6 +386,38 @@ async function getOperationalSummary(request: Request, env: Env): Promise<Respon
   }
 }
 
+async function getModerationHistory(request: Request, env: Env, eventId: string): Promise<Response> {
+  const operator = await authorizeOperations(request, env)
+  if (operator instanceof Response) return operator
+
+  try {
+    const result = await env.DB.prepare(
+      `SELECT id, event_id, action, from_status, to_status, actor_id, reason, occurred_at, request_id
+       FROM report_moderation_events
+       WHERE event_id = ?
+       ORDER BY occurred_at DESC, id DESC
+       LIMIT 100`,
+    ).bind(eventId).all<Record<string, unknown>>()
+
+    return operationsJson({
+      event_id: eventId,
+      events: result.results.map((row) => ({
+        id: row.id,
+        event_id: row.event_id,
+        action: row.action,
+        from_status: row.from_status,
+        to_status: row.to_status,
+        actor_id: row.actor_id,
+        reason: row.reason,
+        occurred_at: row.occurred_at,
+        request_id: row.request_id,
+      })),
+    })
+  } catch {
+    return operationsJson({ error: 'storage_unavailable' }, 503, { 'retry-after': '60' })
+  }
+}
+
 interface ModerationDecisionInput {
   action: ModerationAction
   expected_status: ModerationStatus
@@ -423,6 +456,17 @@ function moderationEventIdFromPath(url: URL): string | null {
   }
 }
 
+function moderationHistoryEventIdFromPath(url: URL): string | null {
+  const match = /^\/v1\/ops\/reports\/([^/]+)\/history$/.exec(url.pathname)
+  if (!match) return null
+  try {
+    const eventId = decodeURIComponent(match[1])
+    return UUID_PATTERN.test(eventId) ? eventId : null
+  } catch {
+    return null
+  }
+}
+
 async function applyModerationDecision(
   request: Request,
   env: Env,
@@ -452,7 +496,7 @@ async function applyModerationDecision(
 
   try {
     const previous = await env.DB.prepare(
-      `SELECT id, event_id, action, from_status, to_status
+      `SELECT id, event_id, action, from_status, to_status, request_id
        FROM report_moderation_events
        WHERE idempotency_key = ?`,
     ).bind(idempotencyKey).first<StoredModerationEvent>()
@@ -464,7 +508,7 @@ async function applyModerationDecision(
         from_status: previous.from_status,
         status: previous.to_status,
         audit_id: previous.id,
-        request_id: resolvedRequestId,
+        request_id: previous.request_id,
         idempotent: true,
       })
     }
@@ -561,6 +605,11 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/v1/ops/summary') {
       return getOperationalSummary(request, env)
+    }
+
+    const historyEventId = moderationHistoryEventIdFromPath(url)
+    if (request.method === 'GET' && historyEventId) {
+      return getModerationHistory(request, env, historyEventId)
     }
 
     const moderationEventId = moderationEventIdFromPath(url)

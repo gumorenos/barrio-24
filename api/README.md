@@ -12,6 +12,7 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Estado inicial `unverified`, que significa recibido pero no verificado.
 - Consulta operativa en `GET /v1/ops/reports`, protegida por JWT de Cloudflare Access y allowlist de operadores.
 - Resumen agregado en `GET /v1/ops/summary`, con total, estados y fecha más reciente; no devuelve reportes individuales ni ubicaciones.
+- Historial de auditoría en `GET /v1/ops/reports/:event_id/history`, limitado a operadores autorizados y a 100 eventos recientes.
 - Decisiones en `POST /v1/ops/reports/:event_id/decision`, con acción, estado esperado, motivo obligatorio e idempotencia.
 - Auditoría D1 para cada cambio, con retención separada de 180 días.
 - Las rutas operativas no tienen CORS; el API público de reportes conserva su CORS restringible mediante `ALLOWED_ORIGIN`.
@@ -55,6 +56,14 @@ curl "https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/reports?
 ```
 
 La sesión autenticada por Access debe acompañar la consulta. La respuesta incluye `next_cursor` cuando hay más resultados. El cursor se puede enviar como `cursor` en la siguiente consulta.
+
+El historial de un reporte se consulta con:
+
+```bash
+curl "https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/reports/EVENT-ID/history"
+```
+
+Incluye únicamente cambios de moderación auditados: actor, transición, motivo, fecha y los identificadores de correlación. No incluye texto del ciudadano, datos médicos ni coordenadas exactas.
 
 El resumen agregado se consulta así:
 

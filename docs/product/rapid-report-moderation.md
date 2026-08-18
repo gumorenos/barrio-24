@@ -42,7 +42,7 @@ La auditoría no debe copiar texto libre ciudadano, datos médicos, coordenadas 
 
 ## Condiciones para habilitar mutaciones
 
-Las rutas internas (`/v1/ops/reports`, `/v1/ops/summary` y `POST /v1/ops/reports/:event_id/decision`) fallan cerradas si falta la configuración de Access. Antes de habilitarlas en staging hay que verificar:
+Las rutas internas (`/v1/ops/reports`, `/v1/ops/summary`, `/v1/ops/reports/:event_id/history` y `POST /v1/ops/reports/:event_id/decision`) fallan cerradas si falta la configuración de Access. Antes de habilitarlas en staging hay que verificar:
 
 1. La aplicación de Access cubre solo `/v1/ops/*`; el endpoint ciudadano no queda detrás de Access.
 2. El Worker valida la firma, issuer, audience y expiración de `Cf-Access-Jwt-Assertion`, además de una allowlist de correos fuera de Git.
