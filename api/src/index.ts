@@ -435,6 +435,11 @@ function isAllowedOrigin(request: Request, env: Env): boolean {
   return !origin || Boolean(env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN)
 }
 
+function isAllowedOperationsOrigin(request: Request): boolean {
+  const origin = request.headers.get('Origin')
+  return !origin || origin === new URL(request.url).origin
+}
+
 function rateLimitKey(request: Request): string {
   const clientId = request.headers.get('X-Client-Id')?.trim()
   if (clientId && UUID_PATTERN.test(clientId)) return `client:${clientId}`
@@ -841,9 +846,13 @@ async function applyModerationDecision(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!isAllowedOrigin(request, env)) return json(request, env, { error: 'origin_not_allowed' }, 403)
-
     const url = new URL(request.url)
+    const isOperationsRequest = url.pathname === '/v1/ops/' || url.pathname.startsWith('/v1/ops/')
+    const originAllowed = isOperationsRequest
+      ? isAllowedOperationsOrigin(request)
+      : isAllowedOrigin(request, env)
+    if (!originAllowed) return json(request, env, { error: 'origin_not_allowed' }, 403)
+
     if (request.method === 'OPTIONS') {
       const response = new Response(null, { status: 204, headers: headersFor(request, env) })
       response.headers.set('access-control-allow-methods', 'POST, GET, OPTIONS')

@@ -226,9 +226,9 @@ function createEnv(rateLimitSuccess = true) {
   }
 }
 
-function request(path: string, init: RequestInit = {}) {
+function request(path: string, init: RequestInit = {}, origin?: string) {
   const headers = new Headers(init.headers)
-  headers.set('Origin', ALLOWED_ORIGIN)
+  headers.set('Origin', origin ?? (path.startsWith('/v1/ops/') ? 'https://api.example.test' : ALLOWED_ORIGIN))
   return new Request(`https://api.example.test${path}`, { ...init, headers })
 }
 
@@ -490,6 +490,10 @@ describe('Worker de Reporte 60 segundos', () => {
     expect(authorized.headers.get('content-security-policy')).toContain("connect-src 'self'")
     expect(authorized.headers.get('x-frame-options')).toBe('DENY')
     await expect(authorized.text()).resolves.toContain('Barrio 24 · Operaciones')
+
+    const crossOrigin = await worker.fetch(request('/v1/ops/', {}, ALLOWED_ORIGIN), env)
+    expect(crossOrigin.status).toBe(403)
+    await expect(crossOrigin.json()).resolves.toMatchObject({ error: 'origin_not_allowed' })
   })
 
   it('aplica decisiones con estado esperado, idempotencia y auditoría', async () => {
