@@ -2,7 +2,7 @@
 
 ## Alcance actual
 
-El proyecto está en la Fase 2 conectada de staging: PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. Los reportes remotos permanecen `unverified`; no hay feed público ni moderación operativa. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+El proyecto está en la Fase 2 conectada de staging: PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. Los reportes remotos permanecen `unverified`; no hay feed público. La moderación operativa existe solo en staging, protegida por Cloudflare Access, y no forma parte de la PWA. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
 
 ## Reglas
 

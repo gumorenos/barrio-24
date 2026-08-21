@@ -1,12 +1,25 @@
 # QA pendiente — Reporte 60 segundos y moderación
 
-Actualizado: 2026-08-18 15:45 America/Lima  
+Actualizado: 2026-08-20 America/Lima  
 Entorno permitido: staging, con datos sintéticos.  
 Producción y `main`: no tocar.
 
 ## Estado de implementación
 
-La autorización de Cloudflare Access, la allowlist de operadores, las transiciones de moderación y la auditoría D1 están implementadas en la rama `feature/02-rapid-report`. También están implementados:
+La autorización de Cloudflare Access, la allowlist de operadores, las transiciones de moderación y la auditoría D1 están implementadas en la rama `feature/02-rapid-report`. Staging fue configurado y desplegado desde `0f1a4b4cc76ea10eb84676f438dbfbc7eb0b39e3`.
+
+Configuración remota confirmada:
+
+- Aplicación Access existente para `barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/*`.
+- Allowlist: `gumorenos@gmail.com`.
+- D1 staging: `barrio24-reports-staging`, ID `eca7ac80-6859-40d5-89db-ba1bb6c61173`.
+- Worker staging: `barrio24-reports-api-staging`.
+- Version ID del despliegue: `fb8de037-70e3-4b20-a2f0-acf46e61ae81`.
+- `api/migrations/0004_moderation_audit.sql` aplicada.
+- `POST /v1/reports` permanece público; `/v1/ops/*` requiere Access.
+- `REPORTS_OPERATIONS_TOKEN` no está configurado.
+
+También están implementados:
 
 - `GET /v1/ops/reports` con filtro, límite y cursor.
 - `GET /v1/ops/summary`.
@@ -26,27 +39,21 @@ tsc/vite build: OK
 git diff --check: OK
 ```
 
-No se considera validación remota. El Worker staging continúa desplegado con el runtime anterior hasta que OpenClaw haga un deploy explícito.
+El acceso interactivo del operador se validó manualmente. Este archivo conserva las pruebas de regresión y abuso que todavía necesitan evidencia reproducible en staging.
 
-## Bloqueo conocido
+## P0 — configuración remota completada
 
-La creación de la aplicación Access se detuvo porque la API de Cloudflare respondió `403`, código `1010`. La lista de aplicaciones sí respondió `200`, pero no había aplicaciones y no se obtuvo `TEAM_DOMAIN` ni `AUDIENCE`.
+- [x] Crear la aplicación de Cloudflare Access únicamente para `https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/*`.
+- [x] Configurar una política `Allow` para el correo del dueño del proyecto; no usar `Everyone`.
+- [x] Confirmar que `POST /v1/reports` sigue público en staging y no queda detrás de Access.
+- [x] Obtener el `TEAM_DOMAIN` y el `AUDIENCE` de esa aplicación.
+- [x] Configurar fuera de Git `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` en el Worker staging.
+- [x] No configurar ni generar `REPORTS_OPERATIONS_TOKEN`.
+- [x] Aplicar solamente `api/migrations/0004_moderation_audit.sql` en `barrio24-reports-staging`.
+- [x] Desplegar el Worker desde el commit de esta rama y guardar el `Version ID`.
+- [x] No desplegar producción, no tocar `main` y no usar datos reales.
 
-Para reanudar, la sesión de OpenClaw necesita un token/API autorizado para crear aplicaciones de Access con el permiso de cuenta `Access: Apps and Policies Edit/Write`. El token no debe pegarse en Telegram ni en este repositorio.
-
-## P0 — configuración remota antes de cualquier QA funcional
-
-- [ ] Crear la aplicación de Cloudflare Access únicamente para `https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/*`.
-- [ ] Configurar una política `Allow` para el correo del dueño del proyecto; no usar `Everyone`.
-- [ ] Confirmar que `POST /v1/reports` sigue público en staging y no queda detrás de Access.
-- [ ] Obtener el `TEAM_DOMAIN` y el `AUDIENCE` de esa aplicación.
-- [ ] Configurar fuera de Git `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` en el Worker staging.
-- [ ] No configurar ni generar `REPORTS_OPERATIONS_TOKEN`.
-- [ ] Aplicar solamente `api/migrations/0004_moderation_audit.sql` en `barrio24-reports-staging`.
-- [ ] Desplegar el Worker desde el commit de esta rama y guardar el `Version ID`.
-- [ ] No desplegar producción, no tocar `main` y no usar datos reales.
-
-Si la API de Cloudflare vuelve a responder `403`/`1010`, detenerse y reportar el permiso faltante; no sustituir Access por un token estático.
+Si una futura modificación de Access responde `403`/`1010`, detenerse y reportar el permiso faltante; no sustituir Access por un token estático.
 
 ## P0 — autenticación y aislamiento
 

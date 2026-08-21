@@ -1,6 +1,6 @@
 # Moderación de Reporte 60 segundos
 
-Este documento define la base de moderación para staging y para una futura operación controlada. No existe un feed público. El Worker ya contiene las rutas de decisión, pero permanecen cerradas hasta configurar y validar Cloudflare Access en staging.
+Este documento define la base de moderación para staging y para una futura operación controlada. No existe un feed público. El Worker contiene las rutas de decisión y staging las protege con Cloudflare Access; todavía no se habilita operación con datos reales.
 
 ## Estados y transiciones
 
@@ -40,14 +40,14 @@ Cada cambio futuro debe registrar, como mínimo:
 
 La auditoría no debe copiar texto libre ciudadano, datos médicos, coordenadas exactas ni credenciales. El `event_id` y la celda aproximada solo deben exponerse a operadores autorizados.
 
-## Condiciones para habilitar mutaciones
+## Condiciones de staging
 
-Las rutas internas (`/v1/ops/reports`, `/v1/ops/summary`, `/v1/ops/reports/:event_id/history` y `POST /v1/ops/reports/:event_id/decision`) fallan cerradas si falta la configuración de Access. Antes de habilitarlas en staging hay que verificar:
+Las rutas internas (`/v1/ops/reports`, `/v1/ops/summary`, `/v1/ops/reports/:event_id/history` y `POST /v1/ops/reports/:event_id/decision`) fallan cerradas si falta la configuración de Access. La configuración actual de staging cumple estas condiciones:
 
 1. La aplicación de Access cubre solo `/v1/ops/*`; el endpoint ciudadano no queda detrás de Access.
 2. El Worker valida la firma, issuer, audience y expiración de `Cf-Access-Jwt-Assertion`, además de una allowlist de correos fuera de Git.
 3. La migración `0004_moderation_audit.sql` está aplicada únicamente en la D1 de staging.
-4. El cambio de estado y la auditoría pasan el QA de concurrencia e idempotencia.
-5. La retención de auditoría y la revocación de operadores están documentadas.
+4. La sesión interactiva del operador autorizado permite consultar las rutas operativas.
+5. El QA restante debe conservar datos sintéticos y cubrir idempotencia, concurrencia, retención y abuso.
 
 No se habilita un borrado administrativo, un feed público ni una vista de ubicación exacta. `REPORTS_OPERATIONS_TOKEN` queda fuera del diseño; la autorización administrativa depende de Cloudflare Access.

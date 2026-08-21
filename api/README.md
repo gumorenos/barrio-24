@@ -1,6 +1,6 @@
 # Barrio 24 Reports API — staging
 
-Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No existe feed público y la moderación operativa queda desactivada hasta configurar Cloudflare Access; `unverified` significa recibido, no confirmado.
+Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No existe feed público. La moderación operativa de staging está protegida por Cloudflare Access; `unverified` significa recibido, no confirmado.
 
 ## Incluye
 
@@ -22,10 +22,11 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Si el binding de Rate Limiting no responde, el API devuelve `503` y el cliente puede conservar el reporte para reintento.
 - Eliminación programada de reportes con más de 30 días.
 
-## Aún falta antes de conectar usuarios
+## Estado de staging y pendientes antes de conectar usuarios
 
 - Revisar el contrato con el dueño del producto.
-- Crear la aplicación de Cloudflare Access para `/v1/ops/*`, configurar su política de allow y publicar `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` fuera de Git.
+- Staging ya tiene una aplicación de Cloudflare Access para `/v1/ops/*`, con allowlist de `gumorenos@gmail.com`; los valores de Access permanecen fuera de Git.
+- Staging ya tiene aplicada la migración `0004_moderation_audit.sql` y desplegado el Worker desde el commit `0f1a4b4cc76ea10eb84676f438dbfbc7eb0b39e3`.
 - Completar QA remoto de JWT, allowlist, decisiones, idempotencia, concurrencia y auditoría.
 - Definir si la persistencia inicial seguirá siendo directa o pasará a Queue.
 - Ejecutar pruebas de carga y abuso controlado; el Rate Limiting nativo es una barrera gruesa y no una cuota global estricta.
@@ -40,7 +41,7 @@ La configuración real de staging se mantiene fuera del repositorio para no publ
 
 Los endpoints de operaciones no forman parte de la PWA ni del feed público. Se habilitan únicamente cuando el Worker valida un JWT de Cloudflare Access y el correo del JWT está en `ACCESS_OPERATOR_EMAILS`. Si la configuración falta, las rutas responden `404`; si el JWT falta o es inválido, responden `403`.
 
-La aplicación de Access debe cubrir solo `/v1/ops/*`, no todo el Worker: `POST /v1/reports` sigue siendo el endpoint público de staging. El Worker valida además `Cf-Access-Jwt-Assertion` con el dominio de equipo y el AUD de la aplicación.
+La aplicación de Access cubre solo `/v1/ops/*`, no todo el Worker: `POST /v1/reports` sigue siendo el endpoint público de staging. El Worker valida además `Cf-Access-Jwt-Assertion` con el dominio de equipo y el AUD de la aplicación.
 
 ```bash
 # Valores fuera de Git, en la configuración autorizada del Worker:
@@ -81,4 +82,4 @@ curl -X POST \
   --data '{"action":"verify","expected_status":"unverified","reason":"Confirmado mediante revisión operativa"}'
 ```
 
-Las acciones disponibles son `verify`, `mark-duplicate`, `resolve` y `expire`. Nunca se deben ejecutar con datos reales hasta completar la revisión de seguridad y el QA remoto.
+Las acciones disponibles son `verify`, `mark-duplicate`, `resolve` y `expire`. Solo deben ejecutarse con datos sintéticos hasta completar la revisión de seguridad, las pruebas de abuso y el piloto controlado.

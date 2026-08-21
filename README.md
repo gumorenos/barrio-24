@@ -2,9 +2,9 @@
 
 Plataforma pública y gratuita para preparación, coordinación comunitaria y respuesta inicial ante sismos en Perú.
 
-> Estado: Fase 2 conectada en staging — 14 de agosto de 2026
+> Estado: Fase 2 conectada en staging; moderación protegida por Access — 20 de agosto de 2026
 
-La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 añade captura y sincronización manual de Reporte 60 segundos contra staging. Los reportes pueden exportarse o borrarse localmente, pero no hay feed público ni moderación operativa.
+La base ya contiene el scaffold inicial de la PWA: Service Worker, manifest instalable, IndexedDB, outbox local sintética, indicador de conectividad y una primera dirección visual propia. La Fase 1 añade una Tarjeta Médica Offline funcional y la Fase 2 añade captura y sincronización manual de Reporte 60 segundos contra staging. Los reportes pueden exportarse o borrarse localmente. No hay feed público; la moderación operativa de staging está protegida por Cloudflare Access y no forma parte de la PWA.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 

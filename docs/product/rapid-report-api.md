@@ -1,6 +1,6 @@
 # Contrato de staging para Reporte 60 segundos conectado
 
-Este documento describe el contrato mínimo implementado en el Worker de staging. No define todavía un producto público ni un panel de moderación.
+Este documento describe el contrato mínimo implementado en el Worker de staging. No define todavía un producto público ni un panel de moderación. La consulta y mutación operativa existen únicamente para staging y están protegidas por Cloudflare Access.
 
 ## Principios
 
@@ -71,7 +71,7 @@ También existe `GET /v1/ops/summary` con el total de reportes, distribución po
 
 `GET /v1/ops/reports/:event_id/history` devuelve hasta 100 eventos de moderación del reporte, ordenados del más reciente al más antiguo. Solo está disponible para operadores autorizados y devuelve la auditoría necesaria para revisar actor, transición, motivo y correlación; no devuelve datos ciudadanos adicionales.
 
-Las transiciones y requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md). Las mutaciones permanecen desactivadas hasta configurar y validar Access en staging.
+Las transiciones y requisitos de auditoría están documentados en [`rapid-report-moderation.md`](./rapid-report-moderation.md). Las mutaciones están habilitadas únicamente en staging, después de la autenticación de Cloudflare Access y con datos sintéticos.
 
 ## Estado del reporte
 
