@@ -10,6 +10,7 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 - Celdas geográficas aproximadas; no acepta coordenadas exactas.
 - Inserción idempotente por `event_id`.
 - Estado inicial `unverified`, que significa recibido pero no verificado.
+- Consola same-origin en `GET /v1/ops/`, protegida por Cloudflare Access y no enlazada desde la PWA.
 - Consulta operativa en `GET /v1/ops/reports`, protegida por JWT de Cloudflare Access y allowlist de operadores.
 - Resumen agregado en `GET /v1/ops/summary`, con total, estados y fecha más reciente; no devuelve reportes individuales ni ubicaciones.
 - Historial de auditoría en `GET /v1/ops/reports/:event_id/history`, limitado a operadores autorizados y a 100 eventos recientes.
@@ -40,6 +41,8 @@ La configuración real de staging se mantiene fuera del repositorio para no publ
 ## Consulta operativa de staging
 
 Los endpoints de operaciones no forman parte de la PWA ni del feed público. Se habilitan únicamente cuando el Worker valida un JWT de Cloudflare Access y el correo del JWT está en `ACCESS_OPERATOR_EMAILS`. Si la configuración falta, las rutas responden `404`; si el JWT falta o es inválido, responden `403`.
+
+`GET /v1/ops/` sirve una consola HTML same-origin para operadores. La consola carga el resumen y los reportes desde el mismo Worker, permite filtrar por estado y presenta únicamente las decisiones ya autorizadas por el contrato. No se enlaza desde el home ni convierte los reportes en un feed público.
 
 La aplicación de Access cubre solo `/v1/ops/*`, no todo el Worker: `POST /v1/reports` sigue siendo el endpoint público de staging. El Worker valida además `Cf-Access-Jwt-Assertion` con el dominio de equipo y el AUD de la aplicación.
 

@@ -476,6 +476,22 @@ describe('Worker de Reporte 60 segundos', () => {
     expect(missingAccess.status).toBe(404)
   })
 
+  it('sirve la consola operativa same-origin solo tras Access', async () => {
+    const env = createEnv()
+    accessState.result = { ok: false, reason: 'missing-token' }
+    const unauthorized = await worker.fetch(request('/v1/ops/'), env)
+    expect(unauthorized.status).toBe(403)
+    expect(unauthorized.headers.get('access-control-allow-origin')).toBeNull()
+
+    accessState.result = { ok: true, identity: { subject: 'operator-sub', email: 'operator@example.com' } }
+    const authorized = await worker.fetch(request('/v1/ops/'), env)
+    expect(authorized.status).toBe(200)
+    expect(authorized.headers.get('content-type')).toContain('text/html')
+    expect(authorized.headers.get('content-security-policy')).toContain("connect-src 'self'")
+    expect(authorized.headers.get('x-frame-options')).toBe('DENY')
+    await expect(authorized.text()).resolves.toContain('Barrio 24 · Operaciones')
+  })
+
   it('aplica decisiones con estado esperado, idempotencia y auditoría', async () => {
     accessState.result = { ok: true, identity: { subject: 'operator-sub', email: 'operator@example.com' } }
     const env = createEnv()

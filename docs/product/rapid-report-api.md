@@ -51,7 +51,13 @@ El cliente impone un timeout nominal de 11,5 segundos por solicitud para mantene
 
 ## Consulta operativa de staging
 
-Existe una ruta interna para inspeccionar y moderar reportes recibidos sin crear todavía un feed público:
+Existe una superficie interna same-origin para inspeccionar y moderar reportes recibidos sin crear todavía un feed público. La consola HTML se abre en:
+
+```text
+GET /v1/ops/
+```
+
+La consola carga las rutas operativas desde el mismo Worker, no usa CORS y no se enlaza desde la PWA. El detalle de las rutas sigue siendo:
 
 ```text
 GET /v1/ops/reports?status=unverified&limit=50&cursor=...
@@ -60,7 +66,7 @@ Cf-Access-Jwt-Assertion: <JWT-inyectado-por-Cloudflare-Access>
 
 - Cloudflare Access se configura solo para `/v1/ops/*`; el endpoint público `POST /v1/reports` no debe quedar detrás de Access.
 - El Worker valida firma, issuer, audience y expiración del JWT, y aplica una allowlist de operadores configurada fuera de Git.
-- La ruta no habilita CORS y no se integra en la PWA.
+- La consola y las rutas no habilitan CORS y no se integran en la PWA.
 - Devuelve únicamente los campos mínimos ya aceptados por el contrato ciudadano: `event_id`, categoría, gravedad, celda aproximada, fechas y estado.
 - `limit` está acotado a 100 y la paginación usa un cursor estable por `received_at` y `event_id`.
 - Los errores de autenticación no revelan datos; los fallos de D1 responden `503`.

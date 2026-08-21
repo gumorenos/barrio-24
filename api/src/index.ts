@@ -136,6 +136,263 @@ function operationsJson(data: unknown, status = 200, extraHeaders?: HeadersInit)
   return new Response(JSON.stringify(data), { status, headers })
 }
 
+const OPERATIONS_CONSOLE_HTML = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Barrio 24 · Operaciones</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#102a43; background:#f4f7fa; }
+    body { margin:0; }
+    main { max-width:1180px; margin:0 auto; padding:24px 16px 48px; }
+    header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:20px; }
+    h1 { margin:0 0 6px; font-size:clamp(24px,4vw,36px); }
+    p { margin:0; color:#52606d; }
+    button, select, input { font:inherit; }
+    button { border:0; border-radius:8px; background:#167d9a; color:white; cursor:pointer; padding:10px 14px; font-weight:700; }
+    button:disabled { cursor:wait; opacity:.6; }
+    .panel { background:white; border:1px solid #d9e2ec; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px #102a430d; }
+    .summary { display:flex; flex-wrap:wrap; gap:10px; }
+    .metric { background:#f4f7fa; border-radius:8px; padding:10px 12px; min-width:120px; }
+    .metric strong { display:block; font-size:22px; color:#102a43; }
+    .metric span { color:#52606d; font-size:13px; }
+    .filters { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+    label { display:grid; gap:5px; color:#52606d; font-size:13px; font-weight:700; }
+    select, input { border:1px solid #bcccdc; border-radius:7px; padding:9px 10px; color:#102a43; background:white; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:900px; }
+    th, td { border-bottom:1px solid #e4e7eb; text-align:left; padding:11px 8px; vertical-align:top; }
+    th { color:#52606d; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    td { font-size:14px; }
+    code { font-size:12px; word-break:break-all; }
+    .controls { display:grid; gap:7px; min-width:220px; }
+    .controls-row { display:flex; gap:6px; }
+    .controls-row select { min-width:130px; }
+    .message { min-height:22px; color:#52606d; margin-bottom:10px; }
+    .error { color:#b42318; }
+    .status { font-weight:700; }
+    .status-unverified { color:#9c6500; }
+    .status-verified { color:#167d9a; }
+    .status-resolved { color:#147d64; }
+    .status-duplicate, .status-expired { color:#7b8794; }
+    @media (max-width:600px) { header { display:block; } header button { margin-top:12px; } main { padding-top:16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Barrio 24 · Operaciones</h1>
+        <p>Staging · reportes sintéticos · acceso restringido</p>
+      </div>
+      <button id="refresh" type="button">Actualizar</button>
+    </header>
+    <section class="panel" aria-labelledby="summary-title">
+      <h2 id="summary-title">Resumen</h2>
+      <div id="summary" class="summary"></div>
+    </section>
+    <section class="panel" aria-labelledby="reports-title">
+      <form id="filters" class="filters">
+        <label>Estado
+          <select id="status">
+            <option value="">Todos</option>
+            <option value="unverified">No verificados</option>
+            <option value="verified">Verificados</option>
+            <option value="resolved">Resueltos</option>
+            <option value="duplicate">Duplicados</option>
+            <option value="expired">Expirados</option>
+          </select>
+        </label>
+        <button type="submit">Filtrar</button>
+      </form>
+      <p id="message" class="message" role="status"></p>
+      <h2 id="reports-title">Reportes</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Evento</th><th>Categoría</th><th>Gravedad</th><th>Zona</th><th>Recibido</th><th>Estado</th><th>Decisión</th></tr></thead>
+          <tbody id="reports"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const statusLabels = { unverified:'No verificado', verified:'Verificado', resolved:'Resuelto', duplicate:'Duplicado', expired:'Expirado', received:'Recibido' };
+    const actionLabels = { verify:'Verificar', resolve:'Resolver', 'mark-duplicate':'Marcar duplicado', expire:'Expirar' };
+    const transitions = {
+      unverified: ['verify','mark-duplicate','expire'],
+      verified: ['resolve','expire'],
+      duplicate: ['expire'],
+      resolved: ['expire'],
+      expired: []
+    };
+    const message = document.querySelector('#message');
+    const summary = document.querySelector('#summary');
+    const reports = document.querySelector('#reports');
+    const status = document.querySelector('#status');
+
+    async function api(path, init) {
+      const response = await fetch(path, Object.assign({ credentials:'same-origin' }, init || {}));
+      const body = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(body.error || ('HTTP ' + response.status));
+      return body;
+    }
+
+    function setMessage(value, isError) {
+      message.textContent = value || '';
+      message.className = isError ? 'message error' : 'message';
+    }
+
+    function addMetric(label, value) {
+      const item = document.createElement('div');
+      item.className = 'metric';
+      const strong = document.createElement('strong');
+      strong.textContent = String(value);
+      const span = document.createElement('span');
+      span.textContent = label;
+      item.append(strong, span);
+      summary.append(item);
+    }
+
+    function renderSummary(value) {
+      summary.replaceChildren();
+      addMetric('Total', value.total);
+      Object.entries(value.by_status || {}).forEach(function (entry) {
+        addMetric(statusLabels[entry[0]] || entry[0], entry[1]);
+      });
+    }
+
+    function makeCell(value) {
+      const cell = document.createElement('td');
+      cell.textContent = value == null ? '—' : String(value);
+      return cell;
+    }
+
+    function renderReports(items) {
+      reports.replaceChildren();
+      if (!items.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.textContent = 'No hay reportes para este filtro.';
+        row.append(cell);
+        reports.append(row);
+        return;
+      }
+      items.forEach(function (report) {
+        const row = document.createElement('tr');
+        const eventCell = document.createElement('td');
+        const eventCode = document.createElement('code');
+        eventCode.textContent = report.event_id;
+        eventCell.append(eventCode);
+        row.append(eventCell);
+        row.append(makeCell(report.category));
+        row.append(makeCell(report.severity));
+        row.append(makeCell(report.location_cell));
+        row.append(makeCell(new Date(report.received_at).toLocaleString()));
+        const state = makeCell(statusLabels[report.status] || report.status);
+        state.className = 'status status-' + report.status;
+        row.append(state);
+
+        const actionCell = document.createElement('td');
+        const actions = transitions[report.status] || [];
+        if (actions.length) {
+          const controls = document.createElement('div');
+          controls.className = 'controls';
+          const controlsRow = document.createElement('div');
+          controlsRow.className = 'controls-row';
+          const select = document.createElement('select');
+          actions.forEach(function (action) {
+            const option = document.createElement('option');
+            option.value = action;
+            option.textContent = actionLabels[action];
+            select.append(option);
+          });
+          const reason = document.createElement('input');
+          reason.type = 'text';
+          reason.maxLength = 500;
+          reason.placeholder = 'Motivo obligatorio';
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = 'Aplicar';
+          button.addEventListener('click', function () {
+            void decide(report, select.value, reason.value, button);
+          });
+          controlsRow.append(select, button);
+          controls.append(controlsRow, reason);
+          actionCell.append(controls);
+        } else {
+          actionCell.textContent = 'Sin acciones';
+        }
+        row.append(actionCell);
+        reports.append(row);
+      });
+    }
+
+    async function decide(report, action, reason, button) {
+      if (!reason.trim()) {
+        setMessage('Cada decisión necesita un motivo.', true);
+        return;
+      }
+      button.disabled = true;
+      try {
+        await api('/v1/ops/reports/' + encodeURIComponent(report.event_id) + '/decision', {
+          method:'POST',
+          headers: {
+            'content-type':'application/json',
+            'idempotency-key':crypto.randomUUID(),
+            'x-request-id':crypto.randomUUID()
+          },
+          body:JSON.stringify({ action:action, expected_status:report.status, reason:reason.trim() })
+        });
+        setMessage('Decisión aplicada.');
+        await load();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'No se pudo aplicar la decisión.', true);
+        button.disabled = false;
+      }
+    }
+
+    async function load() {
+      setMessage('Cargando…');
+      try {
+        const query = status.value ? '?status=' + encodeURIComponent(status.value) + '&limit=100' : '?limit=100';
+        const result = await Promise.all([api('/v1/ops/summary'), api('/v1/ops/reports' + query)]);
+        renderSummary(result[0]);
+        renderReports(result[1].reports || []);
+        setMessage('Actualizado.');
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'No se pudo cargar operaciones.', true);
+      }
+    }
+
+    document.querySelector('#refresh').addEventListener('click', function () { void load(); });
+    document.querySelector('#filters').addEventListener('submit', function (event) {
+      event.preventDefault();
+      void load();
+    });
+    void load();
+  </script>
+</body>
+</html>`;
+
+async function serveOperationsConsole(request: Request, env: Env): Promise<Response> {
+  const operator = await authorizeOperations(request, env)
+  if (operator instanceof Response) return operator
+
+  return new Response(OPERATIONS_CONSOLE_HTML, {
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+      'permissions-policy': 'geolocation=()',
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+    },
+  })
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
@@ -601,6 +858,10 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/v1/ops/reports') {
       return listOperationalReports(request, env)
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/ops/') {
+      return serveOperationsConsole(request, env)
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/ops/summary') {

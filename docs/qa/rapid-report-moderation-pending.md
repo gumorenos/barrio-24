@@ -122,9 +122,9 @@ Crear un reporte sintético y comprobar que llega como `unverified`:
 
 ## P1 — interfaz operativa
 
-No hay una pantalla pública de moderación desplegada. No añadir un enlace de operaciones al home ni habilitar un feed ciudadano. Antes de construir o publicar una interfaz, definir una superficie same-origin o una integración de Access compatible con el navegador; una página Pages haciendo `fetch` cross-origin al Worker sin CORS no es una solución aceptable.
+Existe una consola same-origin en `GET /v1/ops/`, protegida por Cloudflare Access y no enlazada desde el home. No habilita un feed ciudadano ni cambia la PWA. La consola carga las rutas operativas desde el mismo Worker, por lo que no depende de CORS entre Pages y Worker.
 
-Cuando exista esa superficie autorizada, probar además:
+Probar además:
 
 - [ ] La interfaz solo aparece después de autenticación Access.
 - [ ] Lista, filtros, resumen e historial no muestran datos sin autorización.

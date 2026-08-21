@@ -37,6 +37,7 @@ POST /v1/reports
 Estas rutas requieren una sesión interactiva válida de Cloudflare Access y la allowlist del operador:
 
 ```text
+GET  /v1/ops/
 GET  /v1/ops/reports
 GET  /v1/ops/summary
 GET  /v1/ops/reports/:event_id/history
@@ -46,7 +47,7 @@ POST /v1/ops/reports/:event_id/decision
 Para iniciar sesión, abrir en un navegador:
 
 ```text
-https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/summary
+https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/
 ```
 
 Usar `gumorenos@gmail.com` con el método configurado en Access. No pegar tokens estáticos, JWT ni secretos en Telegram, GitHub o el repositorio.
@@ -69,6 +70,8 @@ Las variables `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS`
 ```text
 GET /api/health                         -> 200
 POST /v1/reports                        -> 202 unverified
+GET /v1/ops/                          sin sesión -> redirect/login de Access
+GET /v1/ops/                          con sesión -> HTML 200
 GET /v1/ops/summary sin sesión         -> redirect/login de Access
 GET /v1/ops/summary con sesión         -> 200
 GET /v1/ops/reports con sesión         -> 200
