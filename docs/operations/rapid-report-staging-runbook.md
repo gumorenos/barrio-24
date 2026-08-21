@@ -1,6 +1,6 @@
 # Runbook de staging — Reporte 60 segundos
 
-Actualizado: 2026-08-20 America/Lima.
+Actualizado: 2026-08-21 America/Lima.
 
 Este runbook describe el entorno de staging. No contiene secretos, JWT, audiences ni datos ciudadanos reales.
 
@@ -9,11 +9,11 @@ Este runbook describe el entorno de staging. No contiene secretos, JWT, audience
 | Recurso | Valor |
 |---|---|
 | Rama | `feature/02-rapid-report` |
-| Commit desplegado | `0f1a4b4cc76ea10eb84676f438dbfbc7eb0b39e3` |
+| Commit desplegado | `d2fd8431389198dafb232f7e37bbcc251938a346` |
 | Pages | `https://feature-02-rapid-report.barrio24-staging.pages.dev` |
 | Worker | `barrio24-reports-api-staging` |
 | Worker URL | `https://barrio24-reports-api-staging.gumorenos.workers.dev` |
-| Worker Version ID | `fb8de037-70e3-4b20-a2f0-acf46e61ae81` |
+| Worker Version ID | `946d3cea-9f88-415c-9656-00e0fa5431df` |
 | D1 | `barrio24-reports-staging` |
 | D1 ID | `eca7ac80-6859-40d5-89db-ba1bb6c61173` |
 | Cron | `0 5 * * *` |
@@ -82,6 +82,26 @@ La batería completa de moderación, idempotencia, concurrencia, retención, abu
 ```text
 docs/qa/rapid-report-moderation-pending.md
 ```
+
+## Resultado del QA autenticado — 2026-08-21
+
+Access autenticó a `gumorenos@gmail.com`; `/v1/ops/` devolvió HTML `200` con título `Barrio 24 · Operaciones`. La consola mostró 57 reportes sintéticos, resumen `total: 57` / `unverified: 57`, filtros correctos y un historial vacío para `c4d838e3-46b2-482f-b350-e2edb023f628`.
+
+IDs: verify/resolve `c4d838e3-46b2-482f-b350-e2edb023f628`; mark-duplicate `4b299044-8e90-4583-9c09-23144e807904`; expire `184402bd-6038-49c1-a83e-d0f587208eef`; idempotencia/estado obsoleto `f1107ad3-bc4a-4597-a4ad-1c04d5ccbde1`; POST público adicional `f8579056-bb32-4af9-a7d6-9b31300fd885` (`202`, `unverified`).
+
+La ronda anterior quedó bloqueada por `403 origin_not_allowed`; el fix fue `012f3ff7c69609f2863c5111efa6a6127da1f932`.
+
+### Resultado posterior al fix
+
+- Deploy exclusivo de `barrio24-reports-api-staging`; Version ID `946d3cea-9f88-415c-9656-00e0fa5431df`.
+- `npm ci`, `npm run check`, dry-run y startup check: OK.
+- Verify, resolve, mark-duplicate y expire: OK con reportes sintéticos.
+- Idempotencia: misma respuesta y mismo `audit_id` en el segundo request; una sola auditoría.
+- `expected_status` obsoleto: `409 status_conflict`, sin cambio.
+- Estados expirados: `Sin acciones`; transición inválida: `409 invalid_transition`.
+- Origen Pages autenticado en `/v1/ops/*`: `403 origin_not_allowed`.
+- `POST /v1/reports` público: `202`, ID `5a485364-8123-49ea-aa5f-57741c8f68ea`.
+- Sin coordenadas exactas, datos reales ni secretos. No se aplicaron migraciones ni se tocaron Pages, `main`, producción, D1 o `REPORTS_OPERATIONS_TOKEN`.
 
 ## Condiciones de parada
 
