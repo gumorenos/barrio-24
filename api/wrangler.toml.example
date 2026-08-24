@@ -1,23 +1,28 @@
+# Reference shape only. Do not copy this file to deploy staging.
+# Generate api/wrangler.toml with `npm run staging:config` from
+# api/staging-config.env; the generator validates the authorized staging set.
 name = "barrio24-reports-api-staging"
 main = "src/index.ts"
 compatibility_date = "2026-08-13"
+account_id = "9d3274c57217e9cf44020bec6d754fb7"
 
 [vars]
-ALLOWED_ORIGIN = "https://REPLACE-WITH-PAGES-PREVIEW.example"
+ALLOWED_ORIGIN = "https://feature-02-rapid-report.barrio24-staging.pages.dev"
 
-# Configure these values out of band in the Worker environment; do not commit real values:
-# ACCESS_TEAM_DOMAIN = "https://REPLACE-WITH-TEAM.cloudflareaccess.com"
-# ACCESS_AUDIENCE = "REPLACE-WITH-ACCESS-AUD"
-# ACCESS_OPERATOR_EMAILS = "operator@example.com"
+# ACCESS_TEAM_DOMAIN, ACCESS_AUDIENCE and ACCESS_OPERATOR_EMAILS remain
+# configured out of band in the existing Worker. Never place JWTs/cookies here.
+# REPORTS_OPERATIONS_TOKEN is not part of the design and must not be created.
 
 [[d1_databases]]
 binding = "DB"
 database_name = "barrio24-reports-staging"
-database_id = "REPLACE_WITH_STAGING_DATABASE_ID"
+database_id = "eca7ac80-6859-40d5-89db-ba1bb6c61173"
 
 [[ratelimits]]
 name = "REPORTS_RATE_LIMITER"
-namespace_id = "REPLACE_WITH_UNIQUE_RATE_LIMIT_NAMESPACE_ID"
+# Real value must be obtained from the existing staging Worker/account.
+# It must be a positive integer string. Do not invent or reuse another Worker ID.
+namespace_id = "REPLACE_WITH_CONFIRMED_STAGING_NAMESPACE_ID"
 
   [ratelimits.simple]
   limit = 10
