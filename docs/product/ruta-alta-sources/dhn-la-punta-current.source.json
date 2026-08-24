@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_id": "dhn-la-punta-current-candidate",
+  "source_authority": "Dirección de Hidrografía y Navegación",
+  "source_title": "Carta de inundación en caso de tsunami - La Punta, Callao (edición candidata actual)",
+  "source_url": "https://www.dhn.mil.pe/files/cnat/pdf/cartas-inundacion/La_Punta_2014.pdf",
+  "content_file": null,
+  "source_published_at": null,
+  "source_checked_at": "2026-08-24",
+  "source_valid_at": null,
+  "review_due_at": null,
+  "license_status": "unknown",
+  "license_reference": null,
+  "license_scope": [
+    "download"
+  ],
+  "crs_original": "EPSG:32718",
+  "geometry_type": "PDF",
+  "content_hash": null,
+  "package_version": "2026.08.1",
+  "review_status": "research",
+  "reviewed_by": null
+}

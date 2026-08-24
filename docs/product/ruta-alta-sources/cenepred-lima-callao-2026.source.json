@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_id": "cenepred-lima-callao-sismo-tsunami-2026",
+  "source_authority": "Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres",
+  "source_title": "Descarga SHAPE del escenario de riesgo por sismo y tsunami en Lima y Callao para el restablecimiento de los servicios públicos básicos indispensables",
+  "source_url": "https://sigrid.cenepred.gob.pe/sigridv3/storage/escenario_sismo/4_shape.zip",
+  "content_file": null,
+  "source_published_at": null,
+  "source_checked_at": "2026-08-24",
+  "source_valid_at": null,
+  "review_due_at": null,
+  "license_status": "unknown",
+  "license_reference": null,
+  "license_scope": [
+    "download"
+  ],
+  "crs_original": "UNKNOWN",
+  "geometry_type": "UNKNOWN",
+  "content_hash": null,
+  "package_version": "2026.08.1",
+  "review_status": "research",
+  "reviewed_by": null
+}
