@@ -2,12 +2,15 @@
 
 ## Alcance actual
 
-El proyecto está en la Fase 2 conectada de staging: PWA offline-first, Tarjeta Médica Offline local y captura de Reporte 60 segundos. Existe un Worker/D1 de staging y la PWA puede sincronizar manualmente cuando `VITE_REPORTS_API_URL` está configurada. Los reportes remotos permanecen `unverified`; no hay feed público. La moderación operativa existe solo en staging, protegida por Cloudflare Access, y no forma parte de la PWA. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+El proyecto está en la **Fase 4 conectada de staging**: PWA offline-first, Tarjeta Médica Offline local, Reporte 60 segundos con captura offline y sincronización manual, Worker/D1 de staging y consola operativa de moderación protegida por Cloudflare Access. Los reportes remotos permanecen `unverified`; no hay feed público y producción no está autorizada. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+
+El roadmap detallado y sus puertas de avance viven en [`docs/product/roadmap.md`](docs/product/roadmap.md). Es la fuente de verdad para módulos, fases, dependencias, límites y próximo orden de trabajo. Si otro documento contradice su secuencia o sus puertas, actualizar primero la documentación o seguir el roadmap vigente; no avanzar de fase por inferencia.
 
 ## Reglas
 
 - Trabajar en ramas `feature/*` o `fix/*`; no modificar `main` directamente.
-- Inspeccionar el repositorio y este archivo antes de cambiar código.
+- Inspeccionar el repositorio, este archivo y `docs/product/roadmap.md` antes de cambiar código.
+- Mantener el trabajo dentro de la fase activa y no declarar una puerta superada sin evidencia verificable.
 - Mantener VS Code, TypeScript estricto y la PWA como centro del producto.
 - No introducir credenciales, datos médicos reales, ubicaciones reales ni secretos.
 - No desplegar producción ni crear recursos de Cloudflare sin aprobación explícita.
