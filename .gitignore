@@ -5,6 +5,8 @@ coverage/
 .env.*
 !.env.example
 .wrangler/
+api/wrangler.toml
+api/staging-config.env
 artifacts/
 .DS_Store
 *.log
