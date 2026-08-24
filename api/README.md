@@ -25,18 +25,72 @@ Este Worker recibe reportes mínimos de la PWA en un entorno de staging. No exis
 
 ## Estado de staging y pendientes antes de conectar usuarios
 
-- Revisar el contrato con el dueño del producto.
-- Staging ya tiene una aplicación de Cloudflare Access para `/v1/ops/*`, con allowlist de `gumorenos@gmail.com`; los valores de Access permanecen fuera de Git.
-- Staging ya tiene aplicada la migración `0004_moderation_audit.sql` y desplegado el Worker desde el commit `0f1a4b4cc76ea10eb84676f438dbfbc7eb0b39e3`.
+- Staging tiene una aplicación de Cloudflare Access únicamente para `/v1/ops/*`, con allowlist de `gumorenos@gmail.com`; los valores de Access permanecen fuera de Git.
+- La migración `0004_moderation_audit.sql` se conoce aplicada en el entorno remoto, pero el candidato actual debe volver a verificar formalmente migraciones y esquema antes de cerrar Fase 4.
 - Completar QA remoto de JWT, allowlist, decisiones, idempotencia, concurrencia y auditoría.
-- Definir si la persistencia inicial seguirá siendo directa o pasará a Queue.
-- Ejecutar pruebas de carga y abuso controlado; el Rate Limiting nativo es una barrera gruesa y no una cuota global estricta.
-- Completar QA físico de sincronización en dispositivos; Chromium y la geolocalización manual en Arc Search para iPhone ya fueron validados.
-- Conectar usuarios reales solo después de una revisión de seguridad y privacidad.
+- Ejecutar pruebas reproducibles de carga y abuso; decidir Queue/Turnstile por evidencia, no por arquitectura anticipada.
+- Completar QA físico de sincronización en dispositivos objetivo.
+- Conectar usuarios reales solo después de una revisión de seguridad y privacidad y de superar las puertas del roadmap.
 
-## Configuración del repositorio
+## Configuración reproducible de staging
 
-La configuración real de staging se mantiene fuera del repositorio para no publicar identificadores ni credenciales. `wrangler.toml.example` documenta los bindings requeridos; cualquier despliegue debe usar un archivo local autorizado, aplicar las migraciones y confirmar que el origen permitido corresponde al preview activo.
+`api/wrangler.toml` ya no debe prepararse manualmente. Está ignorado por Git y se genera a partir de un inventario de staging explícito y validado.
+
+1. Copiar `api/staging-config.env.example` a `api/staging-config.env`.
+2. Obtener del Worker/cuenta existente el `BARRIO24_STAGING_RATE_LIMIT_NAMESPACE_ID` real. No inventarlo ni reutilizar el de otro Worker.
+3. Ejecutar:
+
+```bash
+npm run staging:config
+```
+
+El generador falla si cuenta, Worker, D1, origen Pages o cron no coinciden exactamente con el entorno autorizado de staging. También elimina un `api/wrangler.toml` anterior si la validación falla, evitando usar una configuración stale.
+
+Las variables `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` continúan configuradas fuera de Git en el Worker. `REPORTS_OPERATIONS_TOKEN` no forma parte del diseño y no debe crearse.
+
+`api/wrangler.toml.example` es solo una referencia de forma; el archivo que se usa para checks debe ser el generado.
+
+## Checks de staging
+
+Los comandos siguientes son fail-closed y no autorizan producción:
+
+```bash
+npm run test:staging-tools
+npm run staging:dry-run
+npm run staging:startup-check
+```
+
+La suite read-only encadena identificación exacta del commit/rama/worktree, checks del repo, Wrangler, migraciones y esquema D1 sin aplicar migraciones ni desplegar:
+
+```bash
+npm run staging:readiness-readonly -- --execute --expected-sha=<SHA-CANDIDATO>
+```
+
+El schema check remoto utiliza solo `SELECT`/`PRAGMA` y exige que Wrangler reporte cero escrituras:
+
+```bash
+npm run staging:d1-schema-check -- --execute --expected-sha=<SHA-CANDIDATO>
+```
+
+Los probes que generan tráfico son dry-run por defecto y requieren explícitamente `--execute --expected-sha=<SHA-CANDIDATO>`:
+
+```bash
+npm run staging:public-smoke -- --execute --expected-sha=<SHA-CANDIDATO>
+npm run staging:public-abuse -- --execute --expected-sha=<SHA-CANDIDATO>
+npm run staging:controlled-load -- --profile=rate-limit --execute --expected-sha=<SHA-CANDIDATO>
+npm run staging:controlled-load -- --profile=burst --execute --expected-sha=<SHA-CANDIDATO>
+```
+
+La evidencia queda bajo `artifacts/staging-readiness/`, ignorado por Git. La completitud automatizada para un único SHA se comprueba con:
+
+```bash
+npm run staging:evidence-summary -- --expected-sha=<SHA-CANDIDATO>
+npm run staging:evidence-summary -- --expected-sha=<SHA-CANDIDATO> --level=p1
+```
+
+`COMPLETE` significa únicamente que están presentes las evidencias automatizadas requeridas. No sustituye QA interactivo de Access/moderación, revisión de seguridad/privacidad ni autorización de producción.
+
+El detalle de puertas y condiciones de parada está en `docs/operations/rapid-report-production-readiness.md`.
 
 ## Consulta operativa de staging
 
