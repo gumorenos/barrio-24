@@ -1,0 +1,378 @@
+# Roadmap de producto — Barrio 24
+
+Actualizado: 2026-08-24, America/Lima.
+
+Este documento es la **fuente de verdad del roadmap** de Barrio 24. Define visión, límites, módulos, fases, dependencias, puertas de avance y el orden de trabajo. El README puede resumir estas decisiones, pero no debe redefinirlas. Los runbooks y documentos de QA pueden detallar una fase concreta sin cambiar su alcance de producto.
+
+## Estado actual
+
+**Fase activa: Fase 4 — Reporte 60 segundos conectado en staging.**
+
+Estado confirmado del producto en esta fase:
+
+- PWA offline-first operativa.
+- Tarjeta Médica Offline local.
+- Reporte 60 segundos con captura offline y sincronización manual.
+- Worker y D1 de staging para recepción de reportes.
+- Reportes remotos inicialmente `unverified`.
+- Idempotencia, rate limiting y retención implementados en staging.
+- Consola operativa de moderación en el mismo Worker.
+- Cloudflare Access protege únicamente `/v1/ops/*`.
+- `POST /v1/reports` continúa como superficie pública de staging.
+- No existe feed público de reportes.
+- Producción no está autorizada.
+
+La Fase 4 está **en progreso**, no cerrada. Tener un staging funcional no equivale a haber superado sus puertas de salida.
+
+## Visión
+
+Barrio 24 debe ayudar a personas, familias y comunidades a prepararse, conservar información crítica y coordinar una respuesta inicial ante sismos cuando la conectividad sea limitada o intermitente.
+
+El producto debe priorizar utilidad práctica, resiliencia offline, privacidad, claridad del estado de la información y degradación segura. Debe complementar a las autoridades y fuentes oficiales, no competir con ellas ni aparentar autoridad institucional.
+
+## Límites permanentes del producto
+
+1. **No predice terremotos.** No genera pronósticos ni alertas sísmicas propias.
+2. **No reemplaza autoridades.** IGP, INDECI, municipios, bomberos, Policía y servicios médicos siguen siendo las fuentes o responsables oficiales según corresponda.
+3. **Offline-first es un requisito.** Una caída del backend no debe inutilizar funciones locales críticas ya descargadas.
+4. **La información ciudadana no es información oficial.** Un reporte recibido permanece claramente diferenciado de uno verificado.
+5. **Privacidad por diseño.** Datos médicos se mantienen locales por defecto y los reportes no guardan coordenadas exactas.
+6. **Mínimo dato necesario.** No añadir texto libre, imágenes, identificadores personales o telemetría sensible sin una decisión explícita y revisión de riesgo.
+7. **Una PWA antes que apps nativas.** No mantener aplicaciones iOS y Android independientes mientras la PWA cubra el caso de uso.
+8. **No avanzar por apariencia de completitud.** Una fase se cierra únicamente cuando sus puertas tienen evidencia verificable.
+9. **Staging no es producción.** Ningún recurso o validación de staging autoriza por sí mismo exposición pública productiva.
+
+## Módulos M0–M5
+
+Los módulos expresan capacidades de producto. Las fases expresan el orden de entrega. Un módulo puede atravesar más de una fase.
+
+### M0 — Plataforma PWA y resiliencia offline
+
+Responsabilidad:
+
+- instalación PWA;
+- Service Worker y caché;
+- IndexedDB;
+- detección de conectividad;
+- outbox e idempotencia del cliente;
+- estados claros de sincronización;
+- degradación controlada;
+- base de accesibilidad y diseño mobile-first.
+
+No incluye por sí mismo datos médicos, reportes ciudadanos, mapas de evacuación ni coordinación de grupos.
+
+### M1 — Tarjeta Médica Offline
+
+Responsabilidad:
+
+- datos médicos de emergencia almacenados localmente;
+- cifrado local;
+- PIN y vista de emergencia;
+- exportación, importación e impresión;
+- comunicación explícita de datos autodeclarados/no verificados.
+
+Regla principal: los datos médicos no se envían al backend por defecto.
+
+### M2 — Reporte 60 segundos y moderación
+
+Responsabilidad:
+
+- captura de una observación en menos de un minuto;
+- operación offline y sincronización posterior;
+- ubicación aproximada opcional, nunca coordenada exacta persistida;
+- contrato mínimo de API;
+- recepción idempotente y estado `unverified`;
+- retención y controles de abuso;
+- superficie operativa privada para revisión, decisiones y auditoría.
+
+La consola de moderación pertenece a M2 aunque no forme parte de la PWA ciudadana. Un feed público no es requisito de la fase actual.
+
+### M3 — Ruta Alta
+
+Responsabilidad:
+
+- paquetes offline de información geográfica;
+- zonas de inundación, rutas y puntos de reunión de fuentes oficiales;
+- fuente, fecha y versión visibles;
+- instrucciones textuales además del mapa;
+- ubicación aproximada del usuario cuando sea útil y autorizada.
+
+No debe afirmar que una ruta es absolutamente segura ni sustituir instrucciones de autoridades.
+
+### M4 — Coordinación Barrio 24
+
+Responsabilidad:
+
+- grupos privados para familia, edificio, colegio o cuadra;
+- invitación y revocación;
+- check-ins estructurados;
+- necesidades, recursos y tareas;
+- sincronización incremental con conectividad intermitente;
+- límites de grupo y expiración.
+
+No es una red social ni un chat público.
+
+### M5 — Preparación pública, seguridad y operación
+
+Responsabilidad transversal:
+
+- hardening;
+- carga y abuso;
+- privacidad y seguridad;
+- accesibilidad;
+- observabilidad y presupuesto;
+- runbooks y recuperación;
+- QA físico de dispositivos y conectividad;
+- criterios de piloto y producción.
+
+M5 comienza parcialmente durante staging, pero su cierre formal ocurre en la Fase 7.
+
+## Fases 0–7
+
+### Fase 0 — Producto, riesgos y diseño
+
+**Módulos:** preparación de M0–M5.
+
+**Estado:** completada como base de producto; decisiones pueden refinarse sin renumerar fases.
+
+Objetivos:
+
+- definir usuarios y escenarios prioritarios;
+- fijar límites del producto;
+- definir arquitectura inicial y modelo offline-first;
+- establecer lenguaje visual y criterios de accesibilidad;
+- identificar fuentes y riesgos de datos;
+- definir criterios de éxito y privacidad inicial.
+
+**Puerta de salida F0:** alcance y riesgos documentados; ninguna funcionalidad crítica depende de una capacidad no validada del navegador o de una fuente de datos inexistente.
+
+### Fase 1 — Base PWA offline
+
+**Módulo principal:** M0.
+
+**Estado:** implementada.
+
+Objetivos:
+
+- PWA instalable;
+- Service Worker;
+- IndexedDB;
+- detección de conectividad;
+- outbox genérica;
+- estado visible offline/sincronización;
+- lint, typecheck, tests y build reproducibles.
+
+**Puerta de salida F1:** la aplicación abre, conserva datos y demuestra operación local al cerrar/reabrir y durante pérdida de conectividad.
+
+### Fase 2 — Tarjeta Médica Offline
+
+**Módulo principal:** M1; depende de M0.
+
+**Estado:** implementada localmente.
+
+Objetivos:
+
+- modelo local;
+- cifrado Web Crypto;
+- PIN;
+- vista de emergencia;
+- exportación/importación e impresión;
+- validación en navegadores objetivo.
+
+**Puerta de salida F2:** los datos médicos permanecen locales por defecto, se recuperan offline, pueden exportarse/borrarse y no aparecen en logs o tráfico de red no autorizado.
+
+### Fase 3 — Reporte 60 segundos local
+
+**Módulo principal:** M2 sobre M0.
+
+**Estado:** implementada.
+
+Objetivos:
+
+- captura estructurada rápida;
+- guardado offline;
+- estado local explícito;
+- ubicación aproximada opcional;
+- exportación y borrado local;
+- sin texto libre, fotografías ni publicación pública.
+
+**Puerta de salida F3:** un reporte puede crearse y recuperarse sin red; negar geolocalización no bloquea el flujo; ninguna coordenada exacta queda persistida.
+
+### Fase 4 — Reporte 60 segundos conectado en staging
+
+**Módulo principal:** M2; incorpora controles iniciales de M5.
+
+**Estado:** **activa / en progreso**.
+
+Objetivos ya implementados en staging:
+
+- Worker de recepción;
+- D1;
+- validación del contrato;
+- idempotencia;
+- rate limiting inicial;
+- retención;
+- sincronización manual desde la PWA;
+- estado remoto `unverified`;
+- moderación operativa y auditoría;
+- consola operativa same-origin;
+- Cloudflare Access sobre `/v1/ops/*`.
+
+Avance del candidato local actual:
+
+- generador de `api/wrangler.toml` a partir de variables de staging no secretas;
+- validación fail-closed de cuenta, Worker, D1, origen Pages, cron y namespace de Rate Limiting;
+- scripts reproducibles de dry-run/startup con Wrangler `4.125.0`;
+- pruebas unitarias del generador sin dependencia de Cloudflare;
+- harness de smoke público fijado a staging para health, CORS, recepción e idempotencia básica;
+- probe de abuso público fail-closed para payloads inválidos y controles de privacidad;
+- harness de carga controlada dry-run por defecto, con perfiles acotados para observar rate limiting y ráfagas sin convertir la herramienta en un generador de carga abierto;
+- check D1 remoto de solo lectura que valida la forma esperada del esquema `0001`–`0004` y falla ante cualquier escritura reportada;
+- suite de readiness read-only que exige SHA exacto, rama segura y worktree limpio, limita timeout/salida por comando, encadena checks locales/Cloudflare no mutantes, se detiene al primer fallo y conserva evidencia estructurada fuera de Git;
+- evidencia privada ligada al SHA candidato para smoke, abuso, carga controlada y validación remota del esquema;
+- agregador local de evidencia que detecta artefactos faltantes, FAIL o pertenecientes a otro SHA sin confundir completitud automatizada con autorización de producción.
+
+Objetivos pendientes o sujetos a validación antes de cerrar la fase:
+
+- confirmar el namespace real de Rate Limiting y ejecutar los checks reproducibles contra staging;
+- verificación formal de migraciones D1 y esquema remoto;
+- QA reproducible de la consola y de Access con sesión interactiva;
+- idempotencia y concurrencia remotas con evidencia;
+- pruebas de carga y abuso controlado;
+- QA físico de sincronización y conectividad intermitente;
+- revisión de seguridad y privacidad;
+- decidir con evidencia si Queue y Turnstile son necesarios antes del piloto, en lugar de introducirlos por arquitectura anticipada.
+
+**Puerta de salida F4:**
+
+- checks locales del candidato pasan;
+- configuración y recursos de staging son reproducibles y apuntan únicamente a staging;
+- migraciones remotas están identificadas y consistentes;
+- `/v1/ops/*` exige Access y `POST /v1/reports` conserva el comportamiento público esperado de staging;
+- consola, decisiones, auditoría, idempotencia y concurrencia tienen QA remoto documentado;
+- no se filtran secretos, JWT, datos médicos ni coordenadas exactas;
+- existe un resultado documentado de carga/abuso y una decisión explícita sobre Queue/Turnstile;
+- no quedan bloqueadores P0 de seguridad/privacidad para continuar el desarrollo;
+- ninguna de estas comprobaciones implica autorización de producción.
+
+### Fase 5 — Ruta Alta piloto
+
+**Módulo principal:** M3; depende de M0 y de fuentes GIS confiables.
+
+**Estado:** planificada.
+
+Objetivos:
+
+- escoger una zona piloto;
+- documentar fuentes oficiales y licencias;
+- versionar capas y fecha de vigencia;
+- generar paquete offline;
+- integrar visualización de mapa;
+- añadir instrucciones textuales equivalentes;
+- validar tamaño, actualización y recuperación offline.
+
+**Puerta de entrada F5:** F4 sin bloqueadores P0 y fuentes del piloto identificadas. Antes de empaquetar una capa, su manifiesto debe ser estructuralmente válido y `packagingEligible=true`: licencia de redistribución verificada, permisos de transformación/empaquetado offline, hash real, CRS resuelto y revisión humana aprobada. La investigación y el tooling de procedencia pueden adelantarse; la implementación/publicación de mapas o rutas no.
+
+**Puerta de salida F5:** paquete offline reproducible, fuentes visibles, comportamiento sin red validado y revisión humana de las rutas/puntos antes del piloto.
+
+### Fase 6 — Barrio 24
+
+**Módulo principal:** M4; depende de M0 y de decisiones de identidad/sincronización.
+
+**Estado:** planificada.
+
+Objetivos:
+
+- grupos privados;
+- invitación y revocación;
+- check-ins estructurados;
+- necesidades, recursos y tareas;
+- sincronización incremental;
+- expiración y límites;
+- evaluar Durable Objects solo si la coordinación activa lo justifica.
+
+**Puerta de entrada F6:** modelo de identidad y privacidad aprobado; sincronización intermitente de fases anteriores suficientemente estable.
+
+**Puerta de salida F6:** aislamiento entre grupos, revocación efectiva, sincronización sin duplicados y recuperación de conflictos probadas con datos sintéticos.
+
+### Fase 7 — Hardening y piloto controlado
+
+**Módulo principal:** M5 sobre todos los módulos incluidos en el piloto.
+
+**Estado:** planificada.
+
+Objetivos:
+
+- pruebas de carga y degradación;
+- conectividad intermitente y recuperación;
+- restauración de datos;
+- auditoría de seguridad;
+- revisión de privacidad;
+- accesibilidad;
+- observabilidad, cuotas y presupuesto;
+- runbooks operativos;
+- piloto controlado.
+
+**Puerta de salida F7 / producción:** decisión GO explícita basada en QA, seguridad, privacidad, operación, costos y resultados del piloto. No existe aprobación automática por completar código.
+
+## Dependencias
+
+| Elemento | Depende de | Motivo |
+|---|---|---|
+| M0 Plataforma | — | Base común offline y de instalación |
+| M1 Tarjeta Médica | M0 | Persistencia y UX offline |
+| M2 Reporte local | M0 | IndexedDB, outbox y conectividad |
+| M2 Reporte conectado | M2 local + Worker/D1 | Sincronización e idempotencia |
+| Moderación M2 | Reporte conectado + Access | Opera únicamente sobre reportes remotos |
+| M3 Ruta Alta | M0 + fuentes GIS validadas | Mapas offline deben ser versionables y confiables |
+| M4 Barrio 24 | M0 + identidad + sincronización | Datos privados y conflictos requieren aislamiento |
+| M5 Piloto/producción | módulos incluidos | Hardening debe probar el sistema real que se pretende exponer |
+
+Dependencias técnicas como Queue, Durable Objects, Turnstile, KV o R2 no son objetivos por sí mismas. Se incorporan únicamente cuando una necesidad de producto o evidencia operativa las justifica.
+
+## Reglas de puertas de avance
+
+- Una puerta se considera cerrada solo con evidencia: tests, comandos, capturas/QA manual documentado o resultados remotos reproducibles según corresponda.
+- “Funciona en mi navegador” no reemplaza pruebas automatizadas o QA de dispositivo cuando estos son parte de la puerta.
+- Un resultado parcial no se redondea a PASS.
+- Los pendientes deben permanecer documentados hasta cerrarse; no se borran para presentar una fase como terminada.
+- Una nueva fase puede investigarse en paralelo cuando no modifica el producto activo, pero no debe ocultar bloqueadores P0 de la fase actual.
+- Cambios en producción, `main`, recursos Cloudflare productivos o datos reales requieren autorización explícita independiente de este roadmap.
+
+## Fuera de alcance por ahora
+
+- predicción de terremotos o alertas sísmicas propias;
+- integración con SEIDAS como dependencia de fases iniciales;
+- chat público o red social;
+- diagnóstico médico automático;
+- evaluación automática de seguridad estructural;
+- fotografías como requisito de Reporte 60 segundos;
+- IA para decidir prioridades de rescate;
+- publicación de coordenadas exactas de personas;
+- tratamiento de un reporte ciudadano como confirmación oficial;
+- reemplazo de fuentes o autoridades oficiales;
+- aplicaciones iOS y Android independientes mientras la PWA sea suficiente;
+- producción antes de superar la Fase 7 y obtener autorización explícita.
+
+## Próximo orden de trabajo
+
+1. **Cerrar la reproducibilidad técnica de Fase 4.** Incorporar configuración de staging reproducible, versionada sin secretos, y checks que permitan validar el Worker/D1 de staging sin depender de conocimiento implícito.
+2. **Completar las puertas remotas de Fase 4.** Verificar migraciones, Access, consola, moderación, idempotencia, concurrencia y auditoría con evidencia reproducible.
+3. **Ejecutar carga/abuso y decidir arquitectura por evidencia.** Determinar si Queue, Turnstile u otros controles son necesarios antes del piloto; no agregarlos solo porque aparezcan en un diagrama futuro.
+4. **Cerrar QA físico, seguridad y privacidad de Reporte 60 segundos.** Mantener NO-GO para producción mientras existan bloqueadores P0.
+5. **Preparar Fase 5 mediante investigación de fuentes.** La Punta/Callao queda como candidato provisional y el inventario inicial está en `docs/product/ruta-alta-source-research.md`; usar el validador de manifiestos para mantener bloqueado el empaquetado mientras licencia, geometrías, hash, CRS o vigencia estén sin resolver. Esto no abre la implementación de mapas/rutas de F5.
+6. **Implementar Fase 5 solo después de la puerta de entrada.** Mantener la numeración 0–7 y no saltar directamente a Barrio 24.
+7. **Abordar Fase 6 y luego Fase 7.** La preparación productiva final y el piloto controlado pertenecen a Fase 7, no a una segunda “Fase 6”.
+
+## Mantenimiento del roadmap
+
+Actualizar este archivo cuando cambie cualquiera de estos elementos:
+
+- fase activa;
+- alcance o responsabilidad de M0–M5;
+- dependencia que altere el orden de implementación;
+- puerta de entrada o salida;
+- decisión de incorporar o descartar una tecnología relevante;
+- autorización o restricción de piloto/producción.
+
+Cambios de implementación que no alteran el orden ni las puertas pueden documentarse en el README, ADRs, runbooks o documentos de QA sin reescribir el roadmap.
