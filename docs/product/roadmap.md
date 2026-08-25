@@ -1,6 +1,6 @@
 # Roadmap de producto — Barrio 24
 
-Actualizado: 2026-08-24, America/Lima.
+Actualizado: 2026-08-25, America/Lima.
 
 Este documento es la **fuente de verdad del roadmap** de Barrio 24. Define visión, límites, módulos, fases, dependencias, puertas de avance y el orden de trabajo. El README puede resumir estas decisiones, pero no debe redefinirlas. Los runbooks y documentos de QA pueden detallar una fase concreta sin cambiar su alcance de producto.
 
@@ -218,19 +218,15 @@ Objetivos ya implementados en staging:
 - consola operativa same-origin;
 - Cloudflare Access sobre `/v1/ops/*`.
 
-Avance del candidato local actual:
+Tooling de Fase 4 ya persistido en `feature/f4-readiness-f5-prep`:
 
-- generador de `api/wrangler.toml` a partir de variables de staging no secretas;
-- validación fail-closed de cuenta, Worker, D1, origen Pages, cron y namespace de Rate Limiting;
-- scripts reproducibles de dry-run/startup con Wrangler `4.125.0`;
-- pruebas unitarias del generador sin dependencia de Cloudflare;
-- harness de smoke público fijado a staging para health, CORS, recepción e idempotencia básica;
-- probe de abuso público fail-closed para payloads inválidos y controles de privacidad;
-- harness de carga controlada dry-run por defecto, con perfiles acotados para observar rate limiting y ráfagas sin convertir la herramienta en un generador de carga abierto;
-- check D1 remoto de solo lectura que valida la forma esperada del esquema `0001`–`0004` y falla ante cualquier escritura reportada;
-- suite de readiness read-only que exige SHA exacto, rama segura y worktree limpio, limita timeout/salida por comando, encadena checks locales/Cloudflare no mutantes, se detiene al primer fallo y conserva evidencia estructurada fuera de Git;
-- evidencia privada ligada al SHA candidato para smoke, abuso, carga controlada y validación remota del esquema;
-- agregador local de evidencia que detecta artefactos faltantes, FAIL o pertenecientes a otro SHA sin confundir completitud automatizada con autorización de producción.
+- generador fail-closed de `api/wrangler.toml` desde variables de staging no secretas;
+- validación de cuenta, Worker, D1, Pages, cron y namespace de Rate Limiting;
+- Wrangler fijado explícitamente a `4.125.0` en los comandos remotos mediante `npx` (no está instalado ni fijado en `package-lock.json`);
+- smoke público, probe de abuso y carga controlada, todos dry-run o fail-closed y restringidos a staging;
+- check remoto D1 de solo lectura para el esquema esperado `0001`–`0004`;
+- readiness read-only ligado al SHA candidato, rama segura y worktree limpio;
+- evidencia privada ligada al SHA y agregador P0/P1.
 
 Objetivos pendientes o sujetos a validación antes de cerrar la fase:
 
@@ -259,7 +255,16 @@ Objetivos pendientes o sujetos a validación antes de cerrar la fase:
 
 **Módulo principal:** M3; depende de M0 y de fuentes GIS confiables.
 
-**Estado:** planificada.
+**Estado:** planificada; investigación/tooling preparatorio iniciado sin abrir la implementación de mapas.
+
+Preparación ya realizada:
+
+- La Punta/Callao como candidato provisional de investigación;
+- catálogo y manifiestos de procedencia research-only;
+- validación fail-closed de licencia, vigencia, revisión, hash y bytes antes de empaquetar;
+- fetch seguro de fuentes oficiales y auditoría local de cache;
+- inspector ZIP/SHAPE sin extracción al filesystem, con defensas contra traversal, symlinks, cifrado y ZIP bombs;
+- la licencia de redistribución offline sigue sin verificarse, por lo que `packagingEligible` permanece bloqueado.
 
 Objetivos:
 
@@ -271,7 +276,7 @@ Objetivos:
 - añadir instrucciones textuales equivalentes;
 - validar tamaño, actualización y recuperación offline.
 
-**Puerta de entrada F5:** F4 sin bloqueadores P0 y fuentes del piloto identificadas. Antes de empaquetar una capa, su manifiesto debe ser estructuralmente válido y `packagingEligible=true`: licencia de redistribución verificada, permisos de transformación/empaquetado offline, hash real, CRS resuelto y revisión humana aprobada. La investigación y el tooling de procedencia pueden adelantarse; la implementación/publicación de mapas o rutas no.
+**Puerta de entrada F5:** F4 sin bloqueadores P0 y fuentes del piloto identificadas. Antes de empaquetar una capa, su manifiesto debe ser estructuralmente válido y `packagingEligible=true`: licencia de redistribución verificada, permisos de transformación/empaquetado offline, bytes/hash verificados, CRS resuelto, vigencia definida y revisión humana aprobada. La investigación y tooling de procedencia pueden adelantarse; la implementación/publicación de mapas o rutas no.
 
 **Puerta de salida F5:** paquete offline reproducible, fuentes visibles, comportamiento sin red validado y revisión humana de las rutas/puntos antes del piloto.
 
@@ -356,11 +361,11 @@ Dependencias técnicas como Queue, Durable Objects, Turnstile, KV o R2 no son ob
 
 ## Próximo orden de trabajo
 
-1. **Cerrar la reproducibilidad técnica de Fase 4.** Incorporar configuración de staging reproducible, versionada sin secretos, y checks que permitan validar el Worker/D1 de staging sin depender de conocimiento implícito.
+1. **Ejecutar la reproducibilidad técnica ya implementada de Fase 4 contra staging.** Confirmar el namespace real de Rate Limiting y correr la suite read-only sobre el SHA candidato exacto.
 2. **Completar las puertas remotas de Fase 4.** Verificar migraciones, Access, consola, moderación, idempotencia, concurrencia y auditoría con evidencia reproducible.
 3. **Ejecutar carga/abuso y decidir arquitectura por evidencia.** Determinar si Queue, Turnstile u otros controles son necesarios antes del piloto; no agregarlos solo porque aparezcan en un diagrama futuro.
 4. **Cerrar QA físico, seguridad y privacidad de Reporte 60 segundos.** Mantener NO-GO para producción mientras existan bloqueadores P0.
-5. **Preparar Fase 5 mediante investigación de fuentes.** La Punta/Callao queda como candidato provisional y el inventario inicial está en `docs/product/ruta-alta-source-research.md`; usar el validador de manifiestos para mantener bloqueado el empaquetado mientras licencia, geometrías, hash, CRS o vigencia estén sin resolver. Esto no abre la implementación de mapas/rutas de F5.
+5. **Continuar la preparación de Fase 5 sin abrirla.** Resolver licencia de redistribución offline, obtener/inspeccionar los bytes oficiales y completar CRS/hash/vigencia/revisión humana de las fuentes candidatas; no publicar rutas ni mapas todavía.
 6. **Implementar Fase 5 solo después de la puerta de entrada.** Mantener la numeración 0–7 y no saltar directamente a Barrio 24.
 7. **Abordar Fase 6 y luego Fase 7.** La preparación productiva final y el piloto controlado pertenecen a Fase 7, no a una segunda “Fase 6”.
 
