@@ -1,6 +1,6 @@
 # Runbook de staging — Reporte 60 segundos
 
-Actualizado: 2026-08-24 America/Lima.
+Actualizado: 2026-08-25 America/Lima.
 
 Este runbook describe el entorno de staging. No contiene secretos, JWT, cookies ni datos ciudadanos reales. El detalle de puertas de Fase 4 y el veredicto vigente están en `docs/operations/rapid-report-production-readiness.md`.
 
@@ -10,11 +10,11 @@ Este runbook describe el entorno de staging. No contiene secretos, JWT, cookies 
 |---|---|
 | Rama funcional desplegada conocida | `feature/02-rapid-report` |
 | Base remota conocida | `012f3ff7c69609f2863c5111efa6a6127da1f932` |
-| Rama de preparación/readiness | `feature/f4-readiness-f5-prep` |
+| Rama candidata/readiness | `feature/f4-readiness-f5-prep` |
 | Pages | `https://feature-02-rapid-report.barrio24-staging.pages.dev` |
 | Worker | `barrio24-reports-api-staging` |
 | Worker URL | `https://barrio24-reports-api-staging.gumorenos.workers.dev` |
-| Worker Version ID conocido | `946d3cea-9f88-415c-9656-00e0fa5431df` |
+| Worker Version ID conocido antes del nuevo candidato | `946d3cea-9f88-415c-9656-00e0fa5431df` |
 | D1 | `barrio24-reports-staging` |
 | D1 ID | `eca7ac80-6859-40d5-89db-ba1bb6c61173` |
 | Cron | `0 5 * * *` |
@@ -22,22 +22,20 @@ Este runbook describe el entorno de staging. No contiene secretos, JWT, cookies 
 | Access allowlist | `gumorenos@gmail.com` |
 | Migraciones esperadas | `0001`–`0004` |
 
-La rama de readiness no debe describirse como desplegada hasta que exista evidencia de un despliegue autorizado. Producción permanece fuera de alcance.
+La rama candidata no debe describirse como desplegada hasta registrar un nuevo Version ID. Producción permanece fuera de alcance.
 
 ## Superficie pública
-
-Estas rutas no requieren Cloudflare Access:
 
 ```text
 GET  /api/health
 POST /v1/reports
 ```
 
-`POST /v1/reports` solo acepta el payload mínimo documentado en `api/README.md`. El reporte se guarda como `unverified`; `202` no significa verificado ni atendido.
+`POST /v1/reports` guarda un reporte aceptado como `unverified`; `202` no significa verificado ni atendido.
 
 ## Superficie operativa
 
-Estas rutas requieren una sesión interactiva válida de Cloudflare Access y la allowlist del operador:
+Estas rutas requieren Cloudflare Access y allowlist:
 
 ```text
 GET  /v1/ops/
@@ -47,123 +45,160 @@ GET  /v1/ops/reports/:event_id/history
 POST /v1/ops/reports/:event_id/decision
 ```
 
-Para iniciar sesión, abrir en un navegador:
+Consola:
 
 ```text
 https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/
 ```
 
-Usar únicamente la identidad autorizada por Access. No pegar JWT, cookies o secretos en GitHub, logs compartidos o documentación.
+No guardar JWT, cookies o secretos en GitHub, logs compartidos o documentación.
 
-## Preparar la configuración reproducible
+## 1. Preparar el candidato
 
-1. Crear `api/staging-config.env` desde `api/staging-config.env.example`.
-2. Confirmar el `BARRIO24_STAGING_RATE_LIMIT_NAMESPACE_ID` real del Worker/cuenta existentes; no inventarlo.
-3. Ejecutar:
+```bash
+git fetch origin
+git checkout feature/f4-readiness-f5-prep
+git pull --ff-only
+git status --short
+export CANDIDATE_SHA="$(git rev-parse HEAD)"
+printf 'Candidate: %s\n' "$CANDIDATE_SHA"
+```
+
+`git status --short` debe estar vacío.
+
+Instalar y validar:
+
+```bash
+npm ci
+npm run check
+```
+
+## 2. Preparar configuración reproducible
+
+```bash
+cp api/staging-config.env.example api/staging-config.env
+```
+
+Completar solo valores autorizados de staging. Debe obtenerse el `BARRIO24_STAGING_RATE_LIMIT_NAMESPACE_ID` real; no inventarlo.
+
+Como ayuda para auditar la versión actualmente desplegada puede consultarse:
+
+```bash
+npx --yes --package=wrangler@4.125.0 wrangler versions view \
+  946d3cea-9f88-415c-9656-00e0fa5431df \
+  --name barrio24-reports-api-staging \
+  --json
+```
+
+Si esa salida no permite confirmar el namespace, recuperarlo de la configuración autorizada que creó el binding. Un `namespace_id` debe ser un entero positivo representado como string y, salvo intención explícita de compartir contadores, único dentro de la cuenta.
+
+Generar:
 
 ```bash
 npm run staging:config
 ```
 
-`api/wrangler.toml` está ignorado por Git y solo debe usarse si el generador termina correctamente. Un fallo elimina una configuración previa para evitar usar valores stale.
+`api/wrangler.toml` y `api/staging-config.env` están ignorados por Git. El generador falla cerrado y elimina un `wrangler.toml` stale si la configuración no es válida.
 
 `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` permanecen fuera del repositorio. `REPORTS_OPERATIONS_TOKEN` no forma parte del diseño.
 
-## Readiness antes de cualquier despliegue
-
-Sobre un checkout limpio del SHA candidato, en una rama `feature/*` o `fix/*`:
+## 3. Readiness no mutante
 
 ```bash
-npm ci
-npm run staging:readiness-readonly -- --execute --expected-sha=<SHA-CANDIDATO>
+npm run staging:readiness-readonly -- \
+  --execute \
+  --expected-sha="$CANDIDATE_SHA"
 ```
 
-La suite se detiene al primer fallo y ejecuta únicamente validaciones no mutantes:
+La suite exige SHA, rama `feature/*`/`fix/*`, worktree limpio y ejecuta:
 
-1. SHA exacto de `HEAD`.
-2. Rama segura y nombrada.
-3. Worktree limpio.
-4. `npm run check`.
-5. Wrangler deploy **dry-run**.
-6. Wrangler startup check.
-7. `wrangler d1 migrations list ... --remote`.
-8. Comprobación read-only de tablas, columnas e índices D1 de `0001`–`0004`.
+1. `npm run check`.
+2. Wrangler deploy dry-run.
+3. Wrangler startup check.
+4. `wrangler d1 migrations list ... --remote`.
+5. Check read-only de tablas, columnas e índices D1 `0001`–`0004`.
 
-No aplica migraciones y no ejecuta un deploy real. La evidencia JSON se guarda en `artifacts/staging-readiness/`, fuera de Git.
+No aplica migraciones ni despliega. Evidencia: `artifacts/staging-readiness/`.
 
-## QA público automatizable
+Si `migrations list` muestra algo, recordar que Cloudflare lista **migraciones no aplicadas**. No aplicar automáticamente; revisar primero por qué aparece y confirmar que pertenece a este candidato/staging.
 
-Después de que readiness read-only pase para el mismo SHA:
+## 4. Desplegar lo listo en staging
+
+Este candidato no modifica el runtime frontend. **No redeployar Pages** para este despliegue; conservar el origen Pages existente evita cambiar CORS innecesariamente.
+
+Solo si el readiness anterior termina PASS:
 
 ```bash
-npm run staging:public-smoke -- --execute --expected-sha=<SHA-CANDIDATO>
-npm run staging:public-abuse -- --execute --expected-sha=<SHA-CANDIDATO>
+npx --yes --package=wrangler@4.125.0 wrangler deploy \
+  --config api/wrangler.toml
 ```
 
-El smoke puede crear como máximo un reporte sintético y valida health, CORS, recepción `202 unverified` e idempotencia básica. El probe de abuso envía únicamente payloads deliberadamente inválidos y exige su rechazo.
+`wrangler deploy` crea una nueva versión y la despliega. Registrar de inmediato el nuevo Version ID y asociarlo a `$CANDIDATE_SHA`.
 
-La evidencia P0 automatizable se resume con:
+No hay migraciones nuevas en este candidato respecto al esquema esperado `0001`–`0004`. Si, contra lo esperado, aparece una migración no aplicada, detener el deploy y resolverla por separado. Si finalmente corresponde aplicarla a staging, usar el nombre de la base para reducir riesgo de binding equivocado:
 
 ```bash
-npm run staging:evidence-summary -- --expected-sha=<SHA-CANDIDATO>
+npx --yes --package=wrangler@4.125.0 wrangler d1 migrations apply \
+  barrio24-reports-staging \
+  --remote \
+  --config api/wrangler.toml
 ```
 
-`automatedStatus: COMPLETE` no sustituye Access interactivo, moderación/concurrencia, seguridad o privacidad.
+Ese comando es mutante y requiere una decisión explícita; no forma parte del readiness.
 
-## Carga controlada P1
-
-Solo después de P0 automatizable y usando datos sintéticos:
+## 5. QA automatizable post-deploy
 
 ```bash
-npm run staging:controlled-load -- --profile=rate-limit --execute --expected-sha=<SHA-CANDIDATO>
-npm run staging:controlled-load -- --profile=burst --execute --expected-sha=<SHA-CANDIDATO>
-npm run staging:evidence-summary -- --expected-sha=<SHA-CANDIDATO> --level=p1
+npm run staging:public-smoke -- \
+  --execute --expected-sha="$CANDIDATE_SHA"
+
+npm run staging:public-abuse -- \
+  --execute --expected-sha="$CANDIDATE_SHA"
 ```
 
-Los perfiles tienen límites duros (máximo 25 solicitudes y concurrencia 4). No convertirlos en herramientas de carga abierta ni interpretar el Rate Limiting eventualmente consistente como una cuota exacta.
+El smoke puede crear como máximo un reporte sintético. El probe de abuso solo usa payloads deliberadamente inválidos.
 
-## QA interactivo mínimo
+Luego P1 controlado:
+
+```bash
+npm run staging:controlled-load -- \
+  --profile=rate-limit --execute --expected-sha="$CANDIDATE_SHA"
+
+npm run staging:controlled-load -- \
+  --profile=burst --execute --expected-sha="$CANDIDATE_SHA"
+
+npm run staging:evidence-summary -- \
+  --expected-sha="$CANDIDATE_SHA" --level=p1
+```
+
+Los perfiles tienen límites duros: máximo 25 solicitudes y concurrencia 4. `COMPLETE` en evidencia automatizada no significa GO para producción.
+
+## 6. QA interactivo
 
 ```text
 GET /api/health                         -> 200
 POST /v1/reports                        -> 202 unverified
 GET /v1/ops/ sin sesión                 -> redirect/login de Access
 GET /v1/ops/ con sesión                 -> HTML 200
-GET /v1/ops/summary sin sesión          -> redirect/login de Access
 GET /v1/ops/summary con sesión          -> 200
 GET /v1/ops/reports con sesión          -> 200
 ```
 
-La batería completa de moderación, idempotencia, concurrencia, retención, abuso y QA físico está en `docs/qa/rapid-report-moderation-pending.md`.
-
-## Despliegue staging
-
-Un deploy real no forma parte del readiness automático. Solo ejecutar si existe autorización explícita para desplegar el candidato:
-
-1. Confirmar evidencia P0 del SHA exacto.
-2. Confirmar que no hay migraciones nuevas que requieran una decisión separada.
-3. Confirmar que la configuración apunta exclusivamente a la cuenta/Worker/D1 de staging.
-4. Desplegar únicamente el Worker de staging.
-5. Registrar Version ID y SHA realmente desplegados.
-6. Ejecutar smoke público y QA Access con datos sintéticos.
-7. Confirmar que `main`, producción, Pages productivo y `REPORTS_OPERATIONS_TOKEN` no fueron tocados.
-
-Aplicar migraciones requiere una decisión explícita independiente; nunca hacerlo como efecto lateral de un check.
+Completar moderación, concurrencia, Access, dispositivos, privacidad y seguridad según `docs/qa/rapid-report-moderation-pending.md`.
 
 ## Condiciones de parada
 
-Detenerse y mantener NO-GO si ocurre cualquiera de estas condiciones:
+Mantener NO-GO si:
 
-- `HEAD` no coincide con el SHA candidato.
-- La rama es `main`, está detached o el worktree está sucio.
-- La configuración apunta a otra cuenta, Worker, D1, origen Pages o cron.
-- El namespace de Rate Limiting no puede verificarse.
-- Wrangler dry-run/startup no termina de forma concluyente.
-- Migraciones o esquema D1 no coinciden con `0001`–`0004`.
-- Access deja de proteger únicamente `/v1/ops/*`.
-- `POST /v1/reports` deja de ser público en staging.
-- Aparecen coordenadas exactas, datos médicos o texto libre inesperado en payloads, D1 o respuestas.
-- Se solicita configurar `REPORTS_OPERATIONS_TOKEN`.
-- El QA requiere datos reales.
-- Una validación de solo lectura exige aplicar migraciones o desplegar.
-- Se pretende tocar `main` o producción sin autorización explícita.
+- `HEAD` no coincide con el SHA candidato;
+- rama `main`, detached o worktree sucio;
+- configuración apunta a otra cuenta, Worker, D1, Pages o cron;
+- namespace de Rate Limiting no puede verificarse;
+- dry-run/startup no concluyen;
+- migraciones/esquema no coinciden con `0001`–`0004`;
+- Access deja de proteger únicamente `/v1/ops/*`;
+- `POST /v1/reports` deja de ser público en staging;
+- aparecen coordenadas exactas, datos médicos o texto libre inesperado;
+- se solicita `REPORTS_OPERATIONS_TOKEN`;
+- se requieren datos reales;
+- se pretende tocar `main` o producción sin autorización explícita.
