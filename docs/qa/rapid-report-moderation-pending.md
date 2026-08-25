@@ -1,144 +1,197 @@
-# QA pendiente — Reporte 60 segundos y moderación
+# QA pendiente — Fase 4 Reporte 60 segundos
 
-Actualizado: 2026-08-20 America/Lima  
-Entorno permitido: staging, con datos sintéticos.  
-Producción y `main`: no tocar.
+Actualizado: 2026-08-25 America/Lima  
+Rama de trabajo: `feature/f4-readiness-f5-prep`  
+Entorno permitido para este checklist: **staging y datos sintéticos**.  
+Producción y `main`: **NO-GO / no tocar**.
 
-## Estado de implementación
+Este es el único backlog operativo de QA pendiente de la Fase 4. El detalle de producto y las puertas de avance viven en `docs/product/roadmap.md`; el procedimiento de staging vive en `docs/operations/rapid-report-staging-runbook.md`.
 
-La autorización de Cloudflare Access, la allowlist de operadores, las transiciones de moderación y la auditoría D1 están implementadas en la rama `feature/02-rapid-report`. Staging fue configurado y desplegado desde `0f1a4b4cc76ea10eb84676f438dbfbc7eb0b39e3`.
+## Estado actual
 
-Configuración remota confirmada:
+Implementado y persistido en la rama:
 
-- Aplicación Access existente para `barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/*`.
-- Allowlist: `gumorenos@gmail.com`.
-- D1 staging: `barrio24-reports-staging`, ID `eca7ac80-6859-40d5-89db-ba1bb6c61173`.
-- Worker staging: `barrio24-reports-api-staging`.
-- Version ID del despliegue: `fb8de037-70e3-4b20-a2f0-acf46e61ae81`.
-- `api/migrations/0004_moderation_audit.sql` aplicada.
-- `POST /v1/reports` permanece público; `/v1/ops/*` requiere Access.
-- `REPORTS_OPERATIONS_TOKEN` no está configurado.
+- PWA offline-first, Tarjeta Médica Offline y Reporte 60 segundos local.
+- Worker/D1 de staging con recepción `unverified`, idempotencia, rate limiting y retención.
+- Moderación y auditoría D1.
+- Consola same-origin en `/v1/ops/` protegida por Cloudflare Access.
+- Generador fail-closed de `api/wrangler.toml` desde variables no secretas.
+- Smoke público, probe de abuso y carga controlada restringidos al staging conocido.
+- Check D1 remoto de solo lectura para tablas/columnas/índices `0001`–`0004`.
+- Readiness read-only ligado a SHA candidato, rama segura y worktree limpio.
+- Evidencia privada ligada al SHA y agregador P0/P1.
+- Tooling preparatorio de Ruta Alta; no abre Fase 5 ni autoriza mapas/rutas.
 
-También están implementados:
+Wrangler se fija explícitamente a `4.125.0` en los comandos mediante `npx --package=wrangler@4.125.0`. **No está instalado ni fijado en `package-lock.json`**; el primer uso de esos comandos necesita acceso al registro npm.
 
-- `GET /v1/ops/reports` con filtro, límite y cursor.
-- `GET /v1/ops/summary`.
-- `GET /v1/ops/reports/:event_id/history` para revisar la auditoría.
-- `POST /v1/ops/reports/:event_id/decision` con motivo obligatorio, `expected_status`, `Idempotency-Key`, `X-Request-Id` y control de concurrencia.
-- Fallo cerrado cuando falta la configuración de Access.
-- `REPORTS_OPERATIONS_TOKEN` fuera del diseño.
+## QA ejecutado por ChatGPT el 25-08-2026
 
-Validación local actual:
+### PASS
 
-```text
-npm run check: OK
-Typecheck frontend: OK
-Typecheck API: OK
-Vitest: 32 tests, 7 archivos: OK
-tsc/vite build: OK
-git diff --check: OK
+- `node --test api/scripts/*.test.mjs`: **53/53 PASS**.
+- Cobertura de tooling F4 incluida en esos tests:
+  - configuración Wrangler y fail-closed;
+  - target staging y namespace de Rate Limiting;
+  - smoke público;
+  - abuso público;
+  - carga acotada;
+  - schema D1 read-only;
+  - evidencia y agregación P0/P1;
+  - SHA/rama/worktree del readiness;
+  - timeout y límite de salida de subprocess.
+- `node --check` sobre los scripts de Ruta Alta disponibles en el workspace (`source-catalog.mjs`, `source-fetch.mjs`, `zip-inspect.mjs`): PASS.
+- README corregido a Fase 4 y fases 0–7 sin numeración duplicada.
+- Roadmap actualizado para reflejar que la reproducibilidad F4 ya está implementada y que F5 sigue solo en preparación/investigación.
+
+### No ejecutado en este entorno
+
+No se presentan como PASS:
+
+- `npm ci` sobre un checkout completo de la rama;
+- `npm run check` completo (frontend/API/Vitest/build + tooling);
+- suite completa `test:product-tools` de Ruta Alta;
+- Wrangler `deploy --dry-run` / `check startup`;
+- consultas D1 remotas;
+- smoke/abuso/carga contra el Worker real;
+- Access interactivo y consola operativa;
+- QA en iPhone/Android físico.
+
+Motivo: el entorno de ChatGPT de esta ejecución no tiene DNS/salida directa a GitHub/npm/Cloudflare ni un checkout completo con dependencias. Estos puntos deben ejecutarse desde un terminal autenticado con acceso a staging.
+
+## P0 — antes de desplegar el candidato de staging
+
+- [ ] Hacer checkout de `feature/f4-readiness-f5-prep` y confirmar `git status --short` vacío.
+- [ ] Registrar el SHA exacto: `CANDIDATE_SHA=$(git rev-parse HEAD)`.
+- [ ] Ejecutar `npm ci`.
+- [ ] Ejecutar `npm run check` y exigir PASS completo.
+- [ ] Obtener el **namespace ID real** del binding `REPORTS_RATE_LIMITER`; no inventarlo ni reutilizar otro namespace.
+- [ ] Crear localmente `api/staging-config.env` a partir de `api/staging-config.env.example` con los valores autorizados de staging.
+- [ ] Ejecutar `npm run staging:config` y revisar que `api/wrangler.toml` apunte solo a:
+  - cuenta `9d3274c57217e9cf44020bec6d754fb7`;
+  - Worker `barrio24-reports-api-staging`;
+  - D1 `barrio24-reports-staging`;
+  - D1 ID `eca7ac80-6859-40d5-89db-ba1bb6c61173`;
+  - Pages `https://feature-02-rapid-report.barrio24-staging.pages.dev`;
+  - cron `0 5 * * *`.
+- [ ] Ejecutar la suite read-only:
+
+```bash
+npm run staging:readiness-readonly -- --execute --expected-sha="$CANDIDATE_SHA"
 ```
 
-El acceso interactivo del operador se validó manualmente. Este archivo conserva las pruebas de regresión y abuso que todavía necesitan evidencia reproducible en staging.
+- [ ] Exigir PASS en `npm run check`, Wrangler dry-run/startup, migrations list y schema D1.
+- [ ] Confirmar que la evidencia JSON quedó en `artifacts/staging-readiness/` y corresponde al mismo SHA.
 
-## P0 — configuración remota completada
+**Condición de parada:** cualquier SHA distinto, rama `main`, worktree sucio, recurso Cloudflare no esperado, secreto impreso, migración inesperada o necesidad de crear `REPORTS_OPERATIONS_TOKEN`.
 
-- [x] Crear la aplicación de Cloudflare Access únicamente para `https://barrio24-reports-api-staging.gumorenos.workers.dev/v1/ops/*`.
-- [x] Configurar una política `Allow` para el correo del dueño del proyecto; no usar `Everyone`.
-- [x] Confirmar que `POST /v1/reports` sigue público en staging y no queda detrás de Access.
-- [x] Obtener el `TEAM_DOMAIN` y el `AUDIENCE` de esa aplicación.
-- [x] Configurar fuera de Git `ACCESS_TEAM_DOMAIN`, `ACCESS_AUDIENCE` y `ACCESS_OPERATOR_EMAILS` en el Worker staging.
-- [x] No configurar ni generar `REPORTS_OPERATIONS_TOKEN`.
-- [x] Aplicar solamente `api/migrations/0004_moderation_audit.sql` en `barrio24-reports-staging`.
-- [x] Desplegar el Worker desde el commit de esta rama y guardar el `Version ID`.
-- [x] No desplegar producción, no tocar `main` y no usar datos reales.
+## P0 — después del deploy de staging
 
-Si una futura modificación de Access responde `403`/`1010`, detenerse y reportar el permiso faltante; no sustituir Access por un token estático.
+### Superficie pública
 
-## P0 — autenticación y aislamiento
+- [ ] `GET /api/health` → `200`.
+- [ ] Ejecutar smoke con datos sintéticos:
 
-Probar desde una sesión autorizada y con `curl` o un cliente equivalente:
+```bash
+npm run staging:public-smoke -- --execute --expected-sha="$CANDIDATE_SHA"
+```
 
-- [ ] Sin configuración de Access: las rutas `/v1/ops/*` responden `404 not_found`.
-- [ ] Sin JWT: `403 access_required`.
-- [ ] JWT mal firmado, expirado, con issuer incorrecto o audience incorrecta: `403 access_invalid`.
-- [ ] JWT válido con correo fuera de la allowlist: `403 access_forbidden`.
-- [ ] JWT válido con correo permitido: consulta `200`.
-- [ ] Verificar que no se envía `Access-Control-Allow-Origin` en respuestas operativas.
-- [ ] Verificar que un `Origin` no permitido no puede leer rutas operativas.
-- [ ] Verificar que `POST /v1/reports` continúa funcionando con el origen exacto de Pages.
-- [ ] Verificar que ningún JWT, correo de operador o valor de configuración aparece en logs, respuestas o Git.
+- [ ] Confirmar `POST /v1/reports` → `202 unverified` para un evento nuevo.
+- [ ] Repetir el mismo `event_id` → `409` con `duplicate: true`.
+- [ ] Confirmar CORS únicamente para el origen Pages de staging.
 
-## P0 — migración y datos
+### Abuso/privacidad
 
-- [ ] Confirmar en D1 staging que existe `reports.last_moderation_event_id`.
-- [ ] Confirmar que existe `report_moderation_events` y sus índices.
-- [ ] Insertar únicamente reportes sintéticos.
-- [ ] Confirmar que la consulta operativa no devuelve texto libre, datos médicos, coordenadas exactas ni campos `lat`, `lng`, `latitude` o `longitude`.
-- [ ] Confirmar que `location_cell` solo contiene la celda aproximada de dos decimales.
-- [ ] Confirmar que la auditoría conserva actor, transición, motivo, `occurred_at`, `request_id` e idempotency key sin datos ciudadanos adicionales.
+- [ ] Ejecutar:
 
-## P0 — contrato funcional de moderación
+```bash
+npm run staging:public-abuse -- --execute --expected-sha="$CANDIDATE_SHA"
+```
 
-Crear un reporte sintético y comprobar que llega como `unverified`:
+- [ ] Rechazar JSON inválido, campos extra de coordenadas exactas, precisión excesiva de ubicación, categoría/fecha inválidas y payload >2 KB.
+- [ ] Verificar que ninguno de esos probes crea un reporte válido.
+- [ ] Confirmar ausencia de datos médicos, texto libre, `lat`, `lng`, `latitude` o `longitude` en D1/respuestas/logs.
 
-- [ ] `GET /v1/ops/reports?status=unverified&limit=1` devuelve el reporte.
-- [ ] Paginación por `next_cursor` no repite ni omite el reporte.
-- [ ] `GET /v1/ops/summary` devuelve totales y distribución por estado.
-- [ ] `GET /v1/ops/reports/:event_id/history` empieza con `events: []`.
+### D1 y migraciones
+
+- [ ] Confirmar que `wrangler d1 migrations list ... --remote` no muestra migraciones esperadas sin aplicar.
+- [ ] `npm run staging:d1-schema-check -- --execute --expected-sha="$CANDIDATE_SHA"` → PASS.
+- [ ] Confirmar `reports.last_moderation_event_id`.
+- [ ] Confirmar `report_moderation_events` y sus índices.
+- [ ] Confirmar auditoría con actor, transición, motivo, `occurred_at`, `request_id` e idempotency key, sin datos ciudadanos extra.
+
+## P0 — Access, consola y moderación interactiva
+
+Requiere una sesión real de Cloudflare Access; no guardar JWT ni tokens en Git/evidencia.
+
+- [ ] Access protege **solo** `/v1/ops/*`.
+- [ ] Sin sesión válida → login/denegación; con usuario fuera de allowlist → denegación.
+- [ ] `gumorenos@gmail.com` autorizado → consola `200`.
+- [ ] Respuestas operativas no incluyen CORS abierto.
+- [ ] Origin cross-site no puede usar la consola/API operativa.
+- [ ] Lista/filtros/resumen/historial no exponen datos fuera del contrato.
 - [ ] `verify`: `unverified → verified`.
 - [ ] `resolve`: `verified → resolved`.
 - [ ] `mark-duplicate`: `unverified → duplicate`.
-- [ ] `expire`: permitido desde `unverified`, `duplicate`, `verified` o `resolved`.
-- [ ] `expired` es terminal.
-- [ ] Transiciones inválidas responden `409 invalid_transition` o `409 status_conflict` según corresponda.
-- [ ] Reporte inexistente responde `404 report_not_found`.
-- [ ] Motivo vacío, decisión desconocida, estado esperado inválido y campos adicionales responden `400 invalid_decision`.
-- [ ] Falta de `Idempotency-Key` UUID responde `400 invalid_idempotency_key`.
-- [ ] `X-Request-Id` no UUID responde `400 invalid_request_id`.
-- [ ] Cuerpo mayor de 4 KB responde `413 payload_too_large`.
+- [ ] `expire` solo desde estados permitidos; `expired` terminal.
+- [ ] Decisión inválida / motivo vacío / IDs inválidos → 4xx esperado.
+- [ ] Misma `Idempotency-Key` → mismo resultado sin nueva auditoría.
+- [ ] Misma key para otro reporte → `409 idempotency_conflict`.
+- [ ] Dos decisiones simultáneas sobre el mismo estado: solo una transición y una auditoría.
+- [ ] D1 no disponible → `503 storage_unavailable` sin stack trace.
 
-## P0 — idempotencia, concurrencia y auditoría
+## P1 — carga y decisión Queue/Turnstile
 
-- [ ] Repetir la misma petición con la misma `Idempotency-Key` devuelve el mismo resultado, mantiene el estado y conserva el `request_id` original.
-- [ ] Reutilizar una `Idempotency-Key` para otro `event_id` responde `409 idempotency_conflict`.
-- [ ] Repetir la decisión con otro idempotency key y un `expected_status` antiguo responde `409 status_conflict`.
-- [ ] Lanzar dos decisiones simultáneas sobre el mismo estado: solo una cambia el reporte y solo una fila de auditoría queda creada.
-- [ ] Consultar `history` después de cada decisión y comprobar orden descendente, actor y transición correctos.
-- [ ] Simular D1 no disponible: las rutas operativas devuelven `503 storage_unavailable` sin exponer stack traces.
-- [ ] Ejecutar el cron con datos sintéticos antiguos: reportes con más de 30 días y auditoría con más de 180 días se eliminan; los recientes se conservan.
+Ejecutar solo contra staging y con datos sintéticos.
 
-## P1 — regresión del flujo ciudadano
+```bash
+npm run staging:controlled-load -- --profile=rate-limit --execute --expected-sha="$CANDIDATE_SHA"
+npm run staging:controlled-load -- --profile=burst --execute --expected-sha="$CANDIDATE_SHA"
+```
 
-- [ ] Preview Pages público continúa cargando con HTTPS y CSP válida.
-- [ ] Crear reporte sintético, guardar sin ubicación y sincronizar manualmente.
-- [ ] Crear reporte con zona aproximada; verificar que solo se transmite `location_cell`.
-- [ ] Reintento cuando el API no responde; el reporte queda local y no se pierde.
-- [ ] Duplicar `event_id` conserva el comportamiento `409 duplicate: true`.
-- [ ] CORS permite únicamente el preview staging configurado.
-- [ ] Rate limiting mantiene `429` y `retry-after`; no tratarlo como cuota estricta sin una prueba separada.
-- [ ] Chromium móvil emulado sin overflow, errores de consola ni errores CSP.
-- [ ] Prueba manual en iPhone Safari y Arc Search: ubicación aproximada, permiso denegado, sincronización y modo offline.
+- [ ] Guardar distribución HTTP, p50/p95 y cantidad `202`/`429`/errores.
+- [ ] Confirmar que el limiter se comporta como protección gruesa; no asumir cuota estricta.
+- [ ] Documentar decisión: persistencia directa vs Queue.
+- [ ] Documentar decisión: Turnstile sí/no y criterio que la justifica.
+- [ ] Ejecutar `npm run staging:evidence-summary -- --expected-sha="$CANDIDATE_SHA" --level=p1` y revisar completitud automatizada.
 
-## P1 — interfaz operativa
+`COMPLETE` en el agregador **no significa GO de producción**.
 
-Existe una consola same-origin en `GET /v1/ops/`, protegida por Cloudflare Access y no enlazada desde el home. No habilita un feed ciudadano ni cambia la PWA. La consola carga las rutas operativas desde el mismo Worker, por lo que no depende de CORS entre Pages y Worker.
+## P1 — dispositivos, offline y accesibilidad
 
-Probar además:
+- [ ] iPhone Safari/Arc: permiso de ubicación permitido/denegado, captura, offline, reconexión y sincronización única.
+- [ ] Android Chrome: instalación PWA, modo avión, reconexión, cola y sincronización.
+- [ ] Cerrar/reabrir navegador conserva tarjeta y reportes locales.
+- [ ] API caída/timeout no pierde el reporte local.
+- [ ] Contraste, zoom/tamaño de texto, teclado y lector de pantalla básicos.
+- [ ] Confirmar ausencia de overflow/errores CSP/consola en móvil.
 
-- [ ] La interfaz solo aparece después de autenticación Access.
-- [ ] Lista, filtros, resumen e historial no muestran datos sin autorización.
-- [ ] Cada mutación exige motivo y genera un idempotency key nuevo.
-- [ ] Doble toque/reintento no duplica decisiones.
-- [ ] Estados terminales deshabilitan acciones incompatibles.
-- [ ] Errores `403`, `404`, `409` y `503` son visibles y no hacen perder el reporte seleccionado.
+## P0 — revisión de seguridad y privacidad antes de cerrar F4
 
-## Evidencia que debe guardar OpenClaw
+- [ ] Revisar headers y CSP de Pages y consola Worker.
+- [ ] Revisar que Access/JWT/configuración no queden en logs o artefactos.
+- [ ] Revisar retención: reportes 30 días, auditoría 180 días.
+- [ ] Ejecutar cron con datos sintéticos y confirmar borrado selectivo.
+- [ ] Revisar minimización de ubicación y ausencia de identificadores personales.
+- [ ] Registrar bloqueadores y resolver todos los P0 antes de abrir implementación F5.
 
-- Commit exacto probado y rama.
-- Worker Version ID, URL, D1 ID y migración aplicada.
-- Nombre/patrón de la aplicación Access, sin imprimir secretos.
-- Comandos y resultados de `npm run check`, deploy dry-run y smoke tests.
-- IDs de eventos sintéticos usados.
-- Resultado de cada bloque P0/P1 y cualquier limitación de dispositivo.
-- Confirmación explícita de que `main`, producción, datos reales y `REPORTS_OPERATIONS_TOKEN` no fueron tocados.
+## F5 — QA/preparación pendiente, no bloquea el deploy de F4 staging
+
+- [ ] Resolver licencia explícita de transformación/redistribución offline de las fuentes seleccionadas.
+- [ ] Descargar y auditar bytes oficiales; registrar hash real.
+- [ ] Resolver CRS, edición/vigencia y revisión humana.
+- [ ] Mantener `packagingEligible=false` mientras falte cualquiera de esos campos.
+- [ ] No publicar mapas ni rutas como oficiales/seguras antes de superar la puerta de entrada F5.
+
+## Evidencia mínima a conservar
+
+Para cada ejecución remota registrar sin secretos:
+
+- rama y SHA exactos;
+- `npm run check`;
+- nombre/Version ID del Worker desplegado;
+- D1 y migraciones;
+- resultados readiness/smoke/abuso/carga;
+- IDs exclusivamente sintéticos;
+- resultado de Access/console/moderación;
+- limitaciones de dispositivos;
+- confirmación explícita de que `main`, producción, datos reales y `REPORTS_OPERATIONS_TOKEN` no fueron tocados.
