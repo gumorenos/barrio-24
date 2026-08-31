@@ -8,5 +8,6 @@ coverage/
 api/wrangler.toml
 api/staging-config.env
 artifacts/
+*.cpuprofile
 .DS_Store
 *.log
