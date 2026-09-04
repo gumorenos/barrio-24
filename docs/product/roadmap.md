@@ -1,12 +1,12 @@
 # Roadmap de producto — Barrio 24
 
-Actualizado: 2026-08-25, America/Lima.
+Actualizado: 2026-09-04, America/Lima.
 
 Este documento es la **fuente de verdad del roadmap** de Barrio 24. Define visión, límites, módulos, fases, dependencias, puertas de avance y el orden de trabajo. El README puede resumir estas decisiones, pero no debe redefinirlas. Los runbooks y documentos de QA pueden detallar una fase concreta sin cambiar su alcance de producto.
 
 ## Estado actual
 
-**Fase activa: Fase 4 — Reporte 60 segundos conectado en staging.**
+**Fase activa: Fase 4 — Reporte 60 segundos conectado en staging, en cierre.**
 
 Estado confirmado del producto en esta fase:
 
@@ -19,10 +19,13 @@ Estado confirmado del producto en esta fase:
 - Consola operativa de moderación en el mismo Worker.
 - Cloudflare Access protege únicamente `/v1/ops/*`.
 - `POST /v1/reports` continúa como superficie pública de staging.
+- Readiness, smoke, abuso y evidencia automatizada P0/P1 completados sobre SHA `4a2460b1f2d77b088683eb5eab6db4f372ca2927`.
+- Access, moderación, idempotencia, concurrencia e historial remoto validados con datos sintéticos.
+- Carga controlada completada; Queue y Turnstile no se justifican por ahora.
 - No existe feed público de reportes.
 - Producción no está autorizada.
 
-La Fase 4 está **en progreso**, no cerrada. Tener un staging funcional no equivale a haber superado sus puertas de salida.
+La Fase 4 está **en cierre**, no cerrada. Los gates funcionales y operativos principales de staging ya pasaron. Para cerrar formalmente F4 solo quedan los P0 de headers/CSP/privacidad operativa y retención/cron. El QA físico, offline/reconexión y accesibilidad se mantienen como hardening para piloto/F7 y no invalidan el staging funcional actual.
 
 ## Visión
 
@@ -202,21 +205,26 @@ Objetivos:
 
 **Módulo principal:** M2; incorpora controles iniciales de M5.
 
-**Estado:** **activa / en progreso**.
+**Estado:** **activa / en cierre**.
 
-Objetivos ya implementados en staging:
+Objetivos ya implementados y validados en staging:
 
 - Worker de recepción;
 - D1;
 - validación del contrato;
 - idempotencia;
 - rate limiting inicial;
-- retención;
+- retención implementada;
 - sincronización manual desde la PWA;
 - estado remoto `unverified`;
 - moderación operativa y auditoría;
 - consola operativa same-origin;
-- Cloudflare Access sobre `/v1/ops/*`.
+- Cloudflare Access sobre `/v1/ops/*`;
+- readiness reproducible ligado a SHA;
+- smoke y abuso controlado;
+- QA remoto de moderación, idempotencia y concurrencia;
+- carga P1 y evidencia agregada `COMPLETE`;
+- decisión documentada: Queue no por ahora; Turnstile no por ahora.
 
 Tooling de Fase 4 ya persistido en `feature/f4-readiness-f5-prep`:
 
@@ -228,16 +236,14 @@ Tooling de Fase 4 ya persistido en `feature/f4-readiness-f5-prep`:
 - readiness read-only ligado al SHA candidato, rama segura y worktree limpio;
 - evidencia privada ligada al SHA y agregador P0/P1.
 
-Objetivos pendientes o sujetos a validación antes de cerrar la fase:
+Pendientes antes de cerrar formalmente F4:
 
-- confirmar el namespace real de Rate Limiting y ejecutar los checks reproducibles contra staging;
-- verificación formal de migraciones D1 y esquema remoto;
-- QA reproducible de la consola y de Access con sesión interactiva;
-- idempotencia y concurrencia remotas con evidencia;
-- pruebas de carga y abuso controlado;
-- QA físico de sincronización y conectividad intermitente;
-- revisión de seguridad y privacidad;
-- decidir con evidencia si Queue y Turnstile son necesarios antes del piloto, en lugar de introducirlos por arquitectura anticipada.
+- revisar headers y CSP de Pages staging y consola Worker;
+- confirmar ausencia de secretos/JWT/configuración sensible en logs y artefactos;
+- ejecutar retención/cron con datos sintéticos preparados para expirar y confirmar borrado selectivo;
+- mantener como evidencia secundaria pendiente la reconfirmación D1 directa de `last_moderation_event_id`, `report_moderation_events` e `idempotency_key` cuando haya credenciales Wrangler autorizadas; el comportamiento remoto ya fue validado mediante historial, idempotencia y concurrencia.
+
+QA físico de iPhone/Android, offline/reconexión, persistencia local, accesibilidad y observabilidad se mantienen para hardening/piloto y F7; no son un fallo del staging conectado actual.
 
 **Puerta de salida F4:**
 
@@ -361,13 +367,13 @@ Dependencias técnicas como Queue, Durable Objects, Turnstile, KV o R2 no son ob
 
 ## Próximo orden de trabajo
 
-1. **Ejecutar la reproducibilidad técnica ya implementada de Fase 4 contra staging.** Confirmar el namespace real de Rate Limiting y correr la suite read-only sobre el SHA candidato exacto.
-2. **Completar las puertas remotas de Fase 4.** Verificar migraciones, Access, consola, moderación, idempotencia, concurrencia y auditoría con evidencia reproducible.
-3. **Ejecutar carga/abuso y decidir arquitectura por evidencia.** Determinar si Queue, Turnstile u otros controles son necesarios antes del piloto; no agregarlos solo porque aparezcan en un diagrama futuro.
-4. **Cerrar QA físico, seguridad y privacidad de Reporte 60 segundos.** Mantener NO-GO para producción mientras existan bloqueadores P0.
-5. **Continuar la preparación de Fase 5 sin abrirla.** Resolver licencia de redistribución offline, obtener/inspeccionar los bytes oficiales y completar CRS/hash/vigencia/revisión humana de las fuentes candidatas; no publicar rutas ni mapas todavía.
-6. **Implementar Fase 5 solo después de la puerta de entrada.** Mantener la numeración 0–7 y no saltar directamente a Barrio 24.
-7. **Abordar Fase 6 y luego Fase 7.** La preparación productiva final y el piloto controlado pertenecen a Fase 7, no a una segunda “Fase 6”.
+1. **Cerrar los dos P0 restantes de Fase 4.** Verificar headers/CSP/privacidad operativa y ejecutar retención/cron con datos sintéticos.
+2. **Reconfirmar D1 directa cuando haya credenciales Wrangler autorizadas.** Validar `last_moderation_event_id`, `report_moderation_events` e `idempotency_key` sin relajar permisos ni crear credenciales ad hoc.
+3. **Cerrar formalmente F4 si no aparece un nuevo P0.** Mantener producción en NO-GO.
+4. **Continuar la preparación de Fase 5.** Resolver licencia de redistribución offline, obtener/inspeccionar bytes oficiales y completar CRS/hash/vigencia/revisión humana.
+5. **Abrir implementación F5 solo después de cumplir su puerta de entrada.** No publicar rutas ni mapas antes de `packagingEligible=true` y revisión humana.
+6. **Mantener QA físico, offline/reconexión, accesibilidad y observabilidad para hardening/piloto.** Estos puntos se consolidan en M5/F7.
+7. **Abordar Fase 6 y luego Fase 7.** La preparación productiva final y el piloto controlado pertenecen a Fase 7.
 
 ## Mantenimiento del roadmap
 
