@@ -1,191 +1,164 @@
-# QA pendiente — Fase 4 Reporte 60 segundos
+# QA — Fase 4 Reporte 60 segundos
 
-Actualizado: 2026-08-25 America/Lima  
+Actualizado: 2026-09-04 America/Lima  
 Rama de trabajo: `feature/f4-readiness-f5-prep`  
-Entorno permitido para este checklist: **staging y datos sintéticos**.  
+Entorno permitido: **staging y datos sintéticos**.  
 Producción y `main`: **NO-GO / no tocar**.
 
-Este es el backlog operativo único de QA pendiente de la Fase 4. El roadmap vive en `docs/product/roadmap.md` y el procedimiento de staging en `docs/operations/rapid-report-staging-runbook.md`.
+Este documento registra la evidencia y los pendientes operativos de la Fase 4. El roadmap vive en `docs/product/roadmap.md` y el procedimiento de staging en `docs/operations/rapid-report-staging-runbook.md`.
 
-## Estado implementado
+## Candidato validado y desplegado
 
-- PWA offline-first, Tarjeta Médica Offline y Reporte 60 segundos local.
-- Worker/D1 de staging con recepción `unverified`, idempotencia, rate limiting y retención.
-- Moderación y auditoría D1.
-- Consola same-origin en `/v1/ops/` protegida por Cloudflare Access.
-- Generador fail-closed de `api/wrangler.toml` desde variables no secretas.
-- Smoke público, probe de abuso y carga controlada restringidos al staging conocido.
-- Check D1 remoto de solo lectura para tablas/columnas/índices `0001`–`0004`.
-- Readiness read-only ligado a SHA candidato, rama segura y worktree limpio.
-- Evidencia privada ligada al SHA y agregador P0/P1.
-- Tooling preparatorio de Ruta Alta; no abre Fase 5 ni autoriza mapas/rutas.
+- SHA exacto: `4a2460b1f2d77b088683eb5eab6db4f372ca2927`.
+- Worker staging: `barrio24-reports-api-staging`.
+- Version ID anterior: `cf2bab1e-db4f-435f-9c12-eed02682dce3`.
+- Version ID desplegado: `a18d49e3-4adb-4bdf-8786-4758b057ea15`.
+- Pages no fue redesplegado.
+- Producción, `main`, configuración de Access y migraciones no fueron modificados.
+- No se creó `REPORTS_OPERATIONS_TOKEN`.
 
-Wrangler se fija explícitamente a `4.125.0` en los comandos mediante `npx --package=wrangler@4.125.0`. No está instalado ni fijado en `package-lock.json`; el primer uso de esos comandos necesita acceso al registro npm.
+## QA automatizado y staging — PASS
 
-## QA automatizado cerrado
+- `npm ci`: PASS, 0 vulnerabilidades.
+- `npm run check`: PASS.
+- Readiness read-only ligado al SHA: PASS.
+- Wrangler deploy dry-run: PASS.
+- Wrangler startup check: PASS.
+- Namespace real de Rate Limiting verificado: `2026081401`.
+- Migraciones D1 `0001`–`0004`: consistentes.
+- Schema D1 read-only: PASS.
+- Deploy únicamente del Worker staging: PASS.
+- Public smoke: PASS.
+- Public abuse probe: PASS.
+- Evidence summary P0: `COMPLETE`.
 
-### GitHub Actions — PASS
+## Access, consola y moderación — PASS
 
-Run: `32911472728`  
-SHA probado: `a2fad8ae61344b9ef500136944eda330c5cf3798`  
-Node: `22.23.2`  
-Resultado: **SUCCESS**.
+Con sesión real de Cloudflare Access:
 
-El workflow ejecutó sobre un checkout real de la rama:
+- consola autenticada y endpoint operativo: `200`;
+- Access protege `/v1/ops/*`;
+- superficie ops rechaza CORS desde el origen Pages con `403 origin_not_allowed`;
+- `verify`: PASS;
+- `resolve`: PASS;
+- `mark-duplicate`: PASS;
+- `expire`: PASS;
+- errores `invalid_decision`, `invalid_idempotency_key`, `invalid_transition` y `status_conflict`: PASS;
+- replay con la misma `Idempotency-Key`: misma respuesta, sin nueva auditoría;
+- reutilizar la misma key en otro reporte: `idempotency_conflict`;
+- dos decisiones concurrentes sobre el mismo estado: una transición aplicada y la otra `status_conflict`;
+- historial operativo persistido con actor, transición, motivo, timestamps y request ID.
 
-- `npm ci`: PASS; 378 paquetes instalados, 379 auditados, **0 vulnerabilidades**.
-- Typecheck frontend (`tsc -b`): PASS.
-- Typecheck API: PASS.
-- Vitest: **33/33 PASS** en 7 archivos.
-- Tooling F4: **53/53 PASS**.
-- Tooling Ruta Alta: **31/31 PASS**.
-- Build Vite/PWA: PASS; Service Worker generado.
+No guardar JWT, cookies ni tokens de Access en Git o evidencia.
 
-Total de tests automatizados ejecutados en ese SHA: **117 PASS, 0 FAIL**.
+## P1 carga — PASS
 
-El CI no despliega, no usa secretos de Cloudflare y tiene `contents: read`.
+### Perfil rate-limit
 
-### Correcciones documentales posteriores
+- solicitudes: `15/15` aceptadas;
+- p50: `262.71 ms`;
+- p95: `553.64 ms`.
 
-- README alineado a Fase 4 y enlazado al roadmap.
-- Numeración corregida a Fases 0–7; ya no existe una segunda Fase 6.
-- Roadmap actualizado para distinguir F4 implementada vs. puertas todavía abiertas.
-- Este archivo consolidado como único backlog de QA pendiente.
+### Perfil burst
 
-Estas correcciones no modifican código frontend/API ni el contrato runtime probado por el CI anterior. Antes de desplegar, de todas formas se vuelve a ejecutar `npm run check` sobre el SHA candidato final.
+- solicitudes: `20/20` aceptadas;
+- p50: `279.48 ms`;
+- p95: `496.54 ms`.
 
-## P0 — antes de desplegar el candidato de staging
+Evidence summary P1: `COMPLETE` para SHA `4a2460b1f2d77b088683eb5eab6db4f372ca2927`.
 
-- [ ] Checkout de `feature/f4-readiness-f5-prep` y `git status --short` vacío.
-- [ ] Registrar SHA exacto: `CANDIDATE_SHA=$(git rev-parse HEAD)`.
-- [ ] `npm ci`.
-- [ ] `npm run check` → PASS completo sobre ese SHA.
-- [ ] Obtener el **namespace ID real** de `REPORTS_RATE_LIMITER`; no inventarlo ni reutilizar otro namespace sin intención explícita de compartir contadores.
-- [ ] Crear localmente `api/staging-config.env` desde `api/staging-config.env.example`.
-- [ ] Confirmar que la configuración apunta únicamente a:
-  - cuenta `9d3274c57217e9cf44020bec6d754fb7`;
-  - Worker `barrio24-reports-api-staging`;
-  - D1 `barrio24-reports-staging`;
-  - D1 ID `eca7ac80-6859-40d5-89db-ba1bb6c61173`;
-  - Pages `https://feature-02-rapid-report.barrio24-staging.pages.dev`;
-  - cron `0 5 * * *`.
-- [ ] `npm run staging:config`.
-- [ ] Ejecutar el gate no mutante:
+Decisiones actuales basadas en evidencia:
 
-```bash
-npm run staging:readiness-readonly -- --execute --expected-sha="$CANDIDATE_SHA"
-```
+- Queue: **no por ahora**. La carga probada no justifica introducir una cola antes del piloto.
+- Turnstile: **no por ahora**. El comportamiento observado tampoco justifica añadirlo todavía.
 
-- [ ] Exigir PASS en Wrangler dry-run/startup, migrations list y schema D1.
-- [ ] Verificar evidencia JSON en `artifacts/staging-readiness/` ligada al mismo SHA.
+Estas decisiones deben reabrirse si cambian el volumen, el patrón de abuso o los requisitos de disponibilidad.
 
-**Parar inmediatamente** ante SHA distinto, rama `main`, worktree sucio, recurso Cloudflare no esperado, secreto impreso, migración inesperada o cualquier solicitud de crear `REPORTS_OPERATIONS_TOKEN`.
+## Evidencia D1 pendiente no bloqueante de comportamiento
 
-## P0 — deploy y smoke de staging
+Una consulta D1 directa posterior a la moderación falló por credenciales de Wrangler con `API error 10000`.
 
-No desplegar Pages para este candidato salvo que cambie código frontend. El origen Pages existente debe mantenerse para no cambiar CORS accidentalmente.
+Por tanto falta reconfirmar mediante consulta D1 directa:
 
-Después de que el gate read-only pase:
+- valor de `reports.last_moderation_event_id` en un reporte sintético moderado;
+- fila correspondiente en `report_moderation_events`;
+- `idempotency_key` almacenada.
 
-- [ ] Desplegar únicamente `barrio24-reports-api-staging`.
-- [ ] Registrar nuevo Worker Version ID.
-- [ ] `GET /api/health` → `200`.
-- [ ] Ejecutar:
+Esto queda como **gap de evidencia directa**, no como fallo funcional observado, porque:
 
-```bash
-npm run staging:public-smoke -- --execute --expected-sha="$CANDIDATE_SHA"
-npm run staging:public-abuse -- --execute --expected-sha="$CANDIDATE_SHA"
-```
+- migrations/schema read-only ya pasaron;
+- la moderación remota pasó;
+- el historial devolvió la auditoría esperada;
+- replay/idempotency conflict pasaron;
+- concurrencia produjo una sola transición efectiva.
 
-- [ ] Evento sintético nuevo → `202 unverified`.
-- [ ] Mismo `event_id` → `409` y `duplicate: true`.
-- [ ] CORS solo permite el origen Pages de staging.
-- [ ] Payloads inválidos/precisión excesiva/coordenadas exactas/cuerpo >2 KB se rechazan.
-- [ ] Ningún probe inválido crea una fila válida.
+No crear credenciales nuevas ni relajar permisos solo para cerrar este punto. Reconfirmarlo cuando exista una sesión Wrangler autorizada.
 
-## P0 — D1 y migraciones
+## P0 restantes para cerrar F4
 
-- [ ] `wrangler d1 migrations list ... --remote` no muestra migraciones esperadas sin aplicar.
-- [ ] `npm run staging:d1-schema-check -- --execute --expected-sha="$CANDIDATE_SHA"` → PASS.
-- [ ] Existe `reports.last_moderation_event_id`.
-- [ ] Existe `report_moderation_events` y sus índices.
-- [ ] Auditoría contiene actor, transición, motivo, `occurred_at`, `request_id` e idempotency key sin datos ciudadanos extra.
-- [ ] No aparecen datos médicos, texto libre ni `lat`/`lng`/`latitude`/`longitude` en D1, respuestas o logs.
+Solo quedan dos bloques P0 de seguridad/operación que todavía requieren evidencia explícita:
 
-Si aparecen migraciones pendientes, **no aplicar automáticamente**. Revisar primero si pertenecen al candidato y si corresponde aplicarlas únicamente a staging.
+### 1. Headers y CSP
 
-## P0 — Access, consola y moderación interactiva
+- [ ] Revisar headers de seguridad del Pages staging.
+- [ ] Revisar headers de la consola Worker.
+- [ ] Confirmar CSP efectiva y ausencia de errores CSP relevantes.
+- [ ] Confirmar que Access/JWT/configuración sensible no aparece en logs o artefactos.
+- [ ] Confirmar minimización de ubicación y ausencia de identificadores personales inesperados.
 
-Requiere una sesión real de Cloudflare Access. No guardar JWT ni tokens en Git/evidencia.
+### 2. Retención y cron
 
-- [ ] Access protege únicamente `/v1/ops/*`.
-- [ ] `POST /v1/reports` sigue público en staging.
-- [ ] Sin sesión válida / usuario fuera de allowlist → denegación.
-- [ ] `gumorenos@gmail.com` autorizado → consola `200`.
-- [ ] Respuestas operativas no exponen CORS abierto.
-- [ ] Origin cross-site no puede usar la superficie operativa.
-- [ ] Lista, filtros, resumen e historial respetan el contrato mínimo.
-- [ ] `verify`: `unverified → verified`.
-- [ ] `resolve`: `verified → resolved`.
-- [ ] `mark-duplicate`: `unverified → duplicate`.
-- [ ] `expire` solo desde estados permitidos; `expired` terminal.
-- [ ] Decisiones inválidas y IDs inválidos → 4xx esperado.
-- [ ] Misma `Idempotency-Key` → mismo resultado sin nueva auditoría.
-- [ ] Misma key para otro reporte → `409 idempotency_conflict`.
-- [ ] Dos decisiones simultáneas sobre el mismo estado → una sola transición/auditoría.
-- [ ] D1 no disponible → `503 storage_unavailable` sin stack trace.
+- [ ] Confirmar política de retención: reportes 30 días y auditoría 180 días.
+- [ ] Ejecutar el cron con datos exclusivamente sintéticos preparados para expirar.
+- [ ] Confirmar borrado selectivo correcto sin afectar filas que aún deban conservarse.
+- [ ] Conservar evidencia del resultado sin datos ciudadanos reales.
 
-## P1 — carga y decisión Queue/Turnstile
+**F5 no debe abrir implementación/publicación mientras alguno de estos P0 siga pendiente.**
 
-Solo staging y datos sintéticos:
+## P1 / hardening que no bloquea el cierre técnico de F4
 
-```bash
-npm run staging:controlled-load -- --profile=rate-limit --execute --expected-sha="$CANDIDATE_SHA"
-npm run staging:controlled-load -- --profile=burst --execute --expected-sha="$CANDIDATE_SHA"
-npm run staging:evidence-summary -- --expected-sha="$CANDIDATE_SHA" --level=p1
-```
+Estos puntos deben mantenerse para F7/piloto y no deben confundirse con un fallo del staging actual:
 
-- [ ] Guardar distribución HTTP, p50/p95 y conteos `202`/`429`/errores.
-- [ ] Tratar el limiter como protección gruesa, no cuota estricta.
-- [ ] Documentar decisión persistencia directa vs. Queue.
-- [ ] Documentar decisión Turnstile sí/no y evidencia que la justifica.
+- [ ] iPhone: instalación/uso PWA, ubicación permitida/denegada, offline, reconexión y sincronización única.
+- [ ] Android: instalación PWA, modo avión, reconexión, cola y sincronización.
+- [ ] cerrar/reabrir conserva tarjeta y reportes locales;
+- [ ] API caída/timeout no pierde el reporte local;
+- [ ] persistencia local y recuperación tras reconexión;
+- [ ] accesibilidad básica: contraste, zoom/tamaño de texto, teclado y lector de pantalla;
+- [ ] ausencia de overflow y errores de consola relevantes;
+- [ ] observabilidad, cuotas y presupuesto antes del piloto.
 
-`COMPLETE` en el agregador no equivale a GO de producción.
+## Estado de Fase 4
 
-## P1 — dispositivos, offline y accesibilidad
+**Funcionalidad conectada de staging: PASS.**  
+**P0/P1 automatizado: COMPLETE.**  
+**Access/moderación/idempotencia/concurrencia: PASS.**  
+**Carga: PASS.**  
+**Cierre formal F4: pendiente únicamente de headers/CSP y retención/cron.**  
+**Producción: NO-GO.**
 
-- [ ] iPhone Safari/Arc: ubicación permitida/denegada, offline, reconexión y sincronización única.
-- [ ] Android Chrome: instalación PWA, modo avión, reconexión, cola y sincronización.
-- [ ] Cerrar/reabrir conserva tarjeta y reportes locales.
-- [ ] API caída/timeout no pierde el reporte local.
-- [ ] Contraste, zoom/tamaño de texto, teclado y lector de pantalla básicos.
-- [ ] Sin overflow, errores CSP ni errores de consola relevantes.
+## F5 — preparación permitida, implementación aún cerrada
 
-## P0 — seguridad y privacidad antes de cerrar F4
+Puede continuar únicamente investigación y tooling que no publique ni integre mapas/rutas.
 
-- [ ] Revisar headers y CSP de Pages y consola Worker.
-- [ ] Confirmar que Access/JWT/configuración no aparecen en logs o artefactos.
-- [ ] Retención: reportes 30 días y auditoría 180 días.
-- [ ] Ejecutar cron con datos sintéticos y confirmar borrado selectivo.
-- [ ] Revisar minimización de ubicación y ausencia de identificadores personales.
-- [ ] Cerrar todos los P0 antes de abrir implementación F5.
+Sigue pendiente:
 
-## F5 — preparación pendiente; no bloquea el deploy F4 de staging
+- licencia explícita de transformación/redistribución offline;
+- bytes oficiales y hash real;
+- CRS;
+- edición/vigencia;
+- revisión humana;
+- `packagingEligible=true` antes de empaquetar.
 
-- [ ] Resolver licencia explícita de transformación/redistribución offline de las fuentes elegidas.
-- [ ] Descargar/auditar bytes oficiales y registrar hash real.
-- [ ] Resolver CRS, edición/vigencia y revisión humana.
-- [ ] Mantener `packagingEligible=false` mientras falte cualquiera de esos requisitos.
-- [ ] No publicar mapas/rutas como oficiales o seguras antes de superar la puerta F5.
+## Evidencia a conservar
 
-## Evidencia mínima a conservar
-
-- rama y SHA exactos;
+- SHA exacto;
 - CI / `npm run check`;
-- Worker Version ID;
-- D1 y estado de migraciones;
+- Worker Version ID anterior/nuevo;
+- D1 y migraciones;
 - readiness/smoke/abuso/carga;
-- IDs únicamente sintéticos;
 - Access/consola/moderación;
+- resultados de idempotencia/concurrencia;
+- IDs únicamente sintéticos;
 - limitaciones de dispositivos;
-- confirmación de que `main`, producción, datos reales y `REPORTS_OPERATIONS_TOKEN` no fueron tocados.
+- confirmación de que `main`, producción, Pages, datos reales y `REPORTS_OPERATIONS_TOKEN` no fueron tocados.
