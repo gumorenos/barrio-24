@@ -2,7 +2,11 @@
 
 Plataforma pública y gratuita para preparación, coordinación comunitaria y respuesta inicial ante sismos en Perú.
 
-> Estado: planificación inicial — 11 de agosto de 2026
+> Estado: Fase 4 conectada en staging; Reporte 60 segundos y moderación operativa protegida por Access — 25 de agosto de 2026
+
+La base ya contiene la PWA offline-first, Tarjeta Médica Offline local y Reporte 60 segundos con captura offline y sincronización manual contra staging. La Fase 4 mantiene el flujo conectado en un Worker/D1 de staging, con reportes remotos `unverified` y una consola operativa de moderación protegida por Cloudflare Access. Los reportes pueden exportarse o borrarse localmente. No hay feed público y esta fase no autoriza producción.
+
+El orden de módulos, fases, dependencias y puertas de avance se mantiene en [`docs/product/roadmap.md`](docs/product/roadmap.md), que es la fuente de verdad del roadmap. Este README resume el producto y la arquitectura; si una secuencia o puerta difiere, prevalece el roadmap.
 
 Barrio 24 no pretende predecir terremotos ni reemplazar al IGP, INDECI, los municipios, los bomberos, la Policía, los servicios médicos o los sistemas oficiales de alerta. Su objetivo es resolver problemas prácticos de las familias y comunidades antes, durante y después de un sismo, especialmente cuando la conectividad es limitada y los canales habituales están saturados.
 
@@ -37,7 +41,7 @@ Primera versión:
 - Vista de emergencia de alto contraste.
 - PIN local.
 - Impresión y exportación cifrada.
-- QR opcional con únicamente los campos que el titular decida compartir.
+- QR: fuera de la primera implementación; se evaluará después de validar el flujo de vista de emergencia.
 
 Principio de privacidad: los datos médicos no se envían al servidor por defecto. Se guardan cifrados en el dispositivo. La tarjeta no reemplaza una evaluación médica ni una historia clínica.
 
@@ -57,7 +61,7 @@ Categorías iniciales:
 - Necesidad de refugio.
 - Necesidad de alimentos o medicinas.
 
-El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline.
+El reporte debe poder crearse en menos de un minuto y quedar guardado si el dispositivo está offline. La implementación permite elegir categoría, nivel de gravedad observado y una zona aproximada opcional. Por defecto cada reporte permanece en IndexedDB; con una URL de staging configurada puede enviarse manualmente y queda marcado como `unverified`, nunca como información oficial.
 
 Los reportes públicos tendrán ubicación aproximada, fecha, estado y nivel de verificación. No se expondrán coordenadas exactas de personas ni se presentarán observaciones ciudadanas como información oficial.
 
@@ -234,6 +238,20 @@ Cada operación que no pudo enviarse se guarda con:
 
 El servidor debe aceptar reintentos sin duplicar operaciones. La aplicación no dependerá exclusivamente de Background Sync, porque su ejecución es controlada por el navegador y el sistema operativo. También intentará sincronizar al abrirse, al detectar conectividad y mediante una acción manual.
 
+### Reporte 60 segundos local
+
+La captura local actual:
+
+- no exige cuenta ni conexión;
+- no permite texto libre, fotografías ni publicación pública;
+- guarda categoría, gravedad observada, fecha y estado local;
+- puede guardar una celda geográfica aproximada de alrededor de 1 km, si el usuario autoriza ubicación;
+- nunca guarda la coordenada exacta;
+- permite exportar reportes locales en JSON y borrar sus copias del dispositivo;
+- no debe presentarse como reporte recibido, verificado o enviado a una autoridad.
+
+El contrato mínimo, la idempotencia, el límite inicial, la retención y la moderación operativa de staging ya están implementados. Chromium validó el flujo remoto y la geolocalización fue validada manualmente en Arc Search para iPhone. Antes de usuarios reales faltan cerrar el QA reproducible de Access y moderación, las pruebas de carga/abuso, el QA físico de sincronización y una revisión de seguridad/privacidad.
+
 ## Escalabilidad y modo de emergencia
 
 El tráfico se separará en tres clases:
@@ -336,6 +354,8 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 
 ## Plan de desarrollo
 
+El detalle vigente, dependencias y puertas de salida de cada fase están en [`docs/product/roadmap.md`](docs/product/roadmap.md). La numeración de este resumen debe mantenerse alineada con esa fuente de verdad.
+
 ### Fase 0 — Producto, riesgos y diseño
 
 **Duración:** 1–2 días.
@@ -371,26 +391,31 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Vista de emergencia.
 - Impresión.
 - Exportación cifrada.
-- QR opcional.
+- Importación de respaldos cifrados.
 - Pruebas en Android, iOS y escritorio.
 
-### Fase 3 — Reporte 60 segundos
+### Fase 3 — Reporte 60 segundos local
 
-**Duración:** 7–12 días.
+**Duración:** 1–3 días para el núcleo local; el backend requiere una etapa separada.
 
 - Formulario de categorías.
 - Ubicación aproximada opcional.
 - Guardado offline.
-- API Worker/Hono.
-- D1.
-- Queue.
-- Idempotencia.
-- Rate limiting.
-- Turnstile adaptativo.
-- Moderación básica.
-- Vista pública agregada.
+- Estado explícito `local-only`.
+- Sin texto libre, fotografías ni publicación en esta etapa.
 
-### Fase 4 — Ruta Alta piloto
+### Fase 4 — Reporte 60 segundos conectado
+
+- Contrato mínimo del API y validación estricta.
+- Worker/D1 de staging.
+- Idempotencia, rate limiting y retención.
+- Sincronización manual desde la PWA con estado remoto `unverified`.
+- Moderación operativa y auditoría protegidas por Cloudflare Access.
+- QA reproducible de staging, migraciones, consola, carga y abuso antes de cerrar la fase.
+- Queue y Turnstile se evalúan por evidencia operativa; no son requisitos automáticos.
+- No existe feed público y no es requisito de la Fase 4 actual.
+
+### Fase 5 — Ruta Alta piloto
 
 **Duración:** 10–20 días.
 
@@ -402,7 +427,7 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Mostrar versión y fuente.
 - Probar rutas físicamente si es posible.
 
-### Fase 5 — Barrio 24
+### Fase 6 — Barrio 24
 
 **Duración:** 15–25 días.
 
@@ -416,7 +441,7 @@ No se desarrollarán dos aplicaciones móviles separadas mientras la PWA pueda r
 - Durable Objects para coordinación activa.
 - Revocación y expiración de grupos.
 
-### Fase 6 — Hardening y piloto
+### Fase 7 — Hardening y piloto
 
 **Duración:** 5–10 días.
 
@@ -485,14 +510,14 @@ No se medirá solo el número de visitas.
 
 SEIDAS podrá evaluarse en el futuro mediante una integración oficial y documentada, pero ninguna fase inicial depende de él.
 
-## Próximo paso
+## Estado de esta rama
 
-La siguiente tarea debe ser la **Fase 0**: cerrar decisiones de producto y crear el scaffold mínimo de la PWA offline, sin implementar aún todos los módulos. El primer hito verificable será una pantalla funcional que:
+Esta rama deja implementados la PWA offline-first, Tarjeta Médica Offline local, Reporte 60 segundos local y el flujo conectado de staging con Worker/D1, idempotencia, rate limiting, retención y moderación operativa protegida por Cloudflare Access. El trabajo permanece en Fase 4. La rama `feature/f4-readiness-f5-prep` ya contiene tooling reproducible para configuración de staging, smoke público, abuso, carga controlada, esquema D1, readiness y evidencia ligada al SHA. Antes de cerrar la fase deben ejecutarse contra staging las puertas remotas de Access, migraciones, consola operativa, concurrencia, carga/abuso y revisión de seguridad/privacidad definidas en el roadmap. Producción sigue fuera de alcance.
+
+La base offline conserva estos hitos verificables:
 
 1. se instala como PWA;
 2. muestra claramente si está offline;
 3. guarda datos localmente;
 4. conserva esos datos al cerrar y reabrir;
 5. tiene una cola de sincronización demostrable con datos sintéticos.
-
-

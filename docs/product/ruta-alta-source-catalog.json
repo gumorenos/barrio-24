@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "catalog_id": "la-punta-research",
+  "area_name": "La Punta, Callao",
+  "country_code": "PE",
+  "source_manifests": [
+    "ruta-alta-sources/dhn-la-punta-current.source.json",
+    "ruta-alta-sources/cenepred-lima-callao-2026.source.json"
+  ]
+}
