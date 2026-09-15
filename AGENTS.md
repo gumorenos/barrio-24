@@ -2,7 +2,9 @@
 
 ## Alcance actual
 
-El proyecto está en la **Fase 4 conectada de staging**: PWA offline-first, Tarjeta Médica Offline local, Reporte 60 segundos con captura offline y sincronización manual, Worker/D1 de staging y consola operativa de moderación protegida por Cloudflare Access. Los reportes remotos permanecen `unverified`; no hay feed público y producción no está autorizada. Ruta Alta y Barrio 24 siguen fuera del alcance actual.
+La **Fase 4 — Reporte 60 segundos conectado en staging está formalmente cerrada**. La fase activa es la **Fase 5 — Ruta Alta piloto, preparación de entrada**. La PWA offline-first, Tarjeta Médica Offline local y Reporte 60 segundos conectado permanecen disponibles en staging; producción continúa en NO-GO.
+
+F5 no autoriza todavía a publicar mapas o rutas. Antes de implementar/publicar Ruta Alta debe existir al menos una fuente oficial con bytes verificables, hash, CRS/geometría conocidos, vigencia/edición documentada, licencia o permiso compatible con transformación y redistribución offline, y revisión humana aprobada. No inferir seguridad de una ruta ni licencia a partir de que un documento sea públicamente accesible.
 
 El roadmap detallado y sus puertas de avance viven en [`docs/product/roadmap.md`](docs/product/roadmap.md). Es la fuente de verdad para módulos, fases, dependencias, límites y próximo orden de trabajo. Si otro documento contradice su secuencia o sus puertas, actualizar primero la documentación o seguir el roadmap vigente; no avanzar de fase por inferencia.
 
