@@ -76,6 +76,12 @@ Manifiesto research-only:
 
 El PPRRD resuelve el bloqueo anterior de localizar el instrumento municipal vigente, pero no resuelve por sí mismo derechos de transformación/redistribución de la cartografía incorporada o citada. Deben verificarse además los autores/fuentes de cada mapa relevante dentro del plan.
 
+### Evidencia operativa municipal vigente
+
+La investigación pública adicional del 2026-09-19 confirma que la evacuación vertical no es solo material histórico: la Municipalidad de La Punta comunicó en agosto de 2025 un simulacro con **15 edificios de refugio** y mantiene mensajes públicos que indican identificar el edificio asignado/más cercano y la ruta de acceso. En marzo de 2026 la municipalidad anunció el reconocimiento **Tsunami Ready** y declaró que el distrito cuenta con rutas señalizadas y zonas seguras; INDECI confirmó el reconocimiento y el uso de la carta DHN y ejercicios de evacuación vertical.
+
+Estas publicaciones sirven para contrastar vigencia conceptual y autoridad, pero **no se usarán para inventar geometrías ni para convertir una lista/noticia en dataset redistribuible**. La lista histórica del Plan Tsunami anterior tampoco se considera automáticamente vigente para empaquetado. Los 15 refugios actuales deberán obtenerse de una fuente oficial contemporánea y revisarse contra el PPRRD/plan operativo antes de incorporarlos.
+
 ## S4 — CENEPRED, escenario Lima/Callao 2026
 
 Registro de catálogo:
@@ -117,6 +123,20 @@ Criterio aplicado:
 - cuando una fuente agrega información de instituciones socias, debe respetarse también la atribución/titularidad de la capa concreta.
 
 Hasta encontrar términos específicos o autorización institucional suficiente, los manifiestos siguen fail-closed.
+
+## Contrato de paquete offline (implementado)
+
+`src/lib/ruta-alta-package.ts` define el primer gate de consumo del frontend. Aunque el pipeline GIS todavía trabaje con fixtures sintéticos, ningún paquete puede entrar al producto si no cumple, entre otros:
+
+- `content_hash` SHA-256;
+- revisión humana `approved`, con revisor y `review_due_at` vigente;
+- al menos una fuente;
+- todas las fuentes con hash, `license_status=verified-redistributable` y `review_status=approved`;
+- cada feature trazable por `authority_source_id` a una fuente del paquete;
+- geometría limitada a Point/LineString/Polygon con coordenadas geográficas válidas;
+- IDs no duplicados.
+
+El validador es deliberadamente fail-closed. Los tests usan únicamente geometrías sintéticas y verifican rechazo por licencia desconocida, revisión expirada, fuente inexistente y coordenadas inválidas.
 
 ## Tooling de investigación disponible
 
@@ -199,7 +219,7 @@ No extrae el ZIP al filesystem.
 - [ ] Resolver `source_published_at`, `source_valid_at` y `review_due_at` donde falten.
 - [ ] Auditar el ZIP SHAPE 2026: conjuntos, CRS, tipos geométricos, atributos y tamaño.
 - [x] Localizar y verificar el PPRRD vigente de La Punta 2026–2030.
-- [ ] Contrastar rutas/refugios con el PPRRD municipal vigente y documentación oficial aplicable.
+- [~] Contrastar rutas/refugios con el PPRRD municipal vigente y documentación oficial aplicable: vigencia conceptual/operativa confirmada; faltan dataset/lista actual y geometrías verificadas.
 - [ ] Realizar revisión humana antes de presentar cualquier ruta o refugio como oficial.
 
 ## Decisión vigente
