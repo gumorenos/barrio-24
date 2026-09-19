@@ -1,19 +1,19 @@
 # Ruta Alta — investigación de fuentes y candidato de piloto
 
-Actualizado: 2026-08-24, America/Lima.
+Actualizado: 2026-09-19, America/Lima.
 
-Estado: **investigación previa a Fase 5; no autoriza publicar rutas ni declarar zonas seguras**.
+Estado: **Fase 5 activa en preparación de entrada; no autoriza publicar rutas ni declarar zonas seguras**.
 
-Este documento adelanta únicamente la puerta de investigación permitida mientras Fase 4 sigue abierta. No contiene rutas generadas por Barrio 24, no sustituye información oficial y no convierte una fuente descargable en una licencia de redistribución.
+Este documento registra la investigación de procedencia para Ruta Alta. No contiene rutas generadas por Barrio 24, no sustituye información oficial y no convierte una fuente descargable en una licencia de redistribución.
 
 ## Candidato provisional: La Punta / Callao
 
-La Punta queda como candidato de investigación por disponibilidad de información oficial de tsunami y por la existencia de un escenario CENEPRED 2026 para Lima/Callao. La selección es provisional: Fase 5 no se abre hasta resolver procedencia, vigencia, geometrías y derechos de reutilización.
+La Punta continúa como candidato por disponibilidad de información oficial de tsunami, un PPRRD municipal vigente 2026–2030 y un escenario CENEPRED 2026 para Lima/Callao. La selección sigue condicionada a procedencia, vigencia, geometrías y derechos de reutilización.
 
 Principios que no se negociarán:
 
 - Barrio 24 no recalcula ni inventa rutas oficiales.
-- Acceso público o descarga gratuita no equivalen a permiso de transformación y redistribución offline.
+- Acceso público o descarga gratuita no equivalen por sí solos a permiso de transformación y redistribución offline.
 - Una versión no se deduce del nombre físico de un archivo.
 - Las fuentes research-only pueden documentarse con campos aún no resueltos, pero jamás empaquetarse.
 - Los bytes usados para un paquete futuro deben quedar ligados a SHA-256, revisión humana y fecha de próxima revisión.
@@ -41,9 +41,9 @@ Bloqueadores actuales:
 - sin fecha de publicación/validez y `review_due_at` resueltas;
 - sin revisión humana aprobada para empaquetado.
 
-## S2 — SIGRID/CENEPRED como catálogo de trazabilidad
+## S2 — SIGRID/CENEPRED como catálogo y fuente geoespacial
 
-SIGRID conserva registros históricos de cartas de inundación y otros documentos de gestión del riesgo. Se usa como fuente de catalogación y contraste, no como licencia automática ni como autoridad suficiente para decidir qué edición debe empaquetarse.
+SIGRID conserva registros históricos de cartas de inundación y otros documentos de gestión del riesgo. Se usa como fuente de catalogación y contraste y ofrece extracción/descarga de información geoespacial, pero no se interpreta esa capacidad técnica como licencia automática de redistribución.
 
 Registro histórico de La Punta verificado durante la investigación:
 
@@ -51,9 +51,30 @@ Registro histórico de La Punta verificado durante la investigación:
 
 La coexistencia entre registros históricos y la carta actual servida por DHN refuerza la regla de versionar por bytes y metadatos verificados.
 
-## S3 — PPRRD La Punta 2026–2030, pendiente
+Evidencia oficial adicional revisada el 2026-09-19:
 
-El catálogo general de SIGRID permite localizar PPRRD, pero todavía no se verificó una URL individual estable del documento de La Punta 2026–2030. No se crea manifiesto S3 hasta resolver el registro exacto y el documento descargable.
+- SIGRID se describe como plataforma de libre acceso para consultar, compartir, analizar y monitorear información de riesgo.
+- El manual oficial documenta una función de extracción que permite descargar información geoespacial en File Geodatabase y Shapefile/ZIP.
+- La propia biblioteca de SIGRID pide respetar derechos y dar crédito a los autores intelectuales de información propia o de instituciones socias.
+- La página de normalización muestra copyright de CENEPRED con la fórmula “Todos los derechos reservados”.
+
+Conclusión: existe evidencia fuerte de acceso, consulta, análisis y descarga, pero no una autorización específica suficientemente clara para que Barrio 24 transforme y redistribuya offline los datasets seleccionados. El gate de licencia permanece cerrado.
+
+## S3 — PPRRD La Punta 2026–2030
+
+Fuente primaria localizada y verificada el 2026-09-19:
+
+`https://www.gob.pe/institucion/munilapunta/normas-legales/8260750`
+
+La Resolución de Alcaldía N.° 057-2026-MDLP/AL, publicada el 11 de junio de 2026, aprueba el **Plan de Prevención y Reducción del Riesgo de Desastres ante el peligro de sismo seguido de tsunami 2026–2030** de la Municipalidad Distrital de La Punta y publica el plan como anexo descargable.
+
+SIGRID también cataloga el PPRRD vigente para el distrito La Punta.
+
+Manifiesto research-only:
+
+`docs/product/ruta-alta-sources/mdlp-pprrd-la-punta-2026-2030.source.json`
+
+El PPRRD resuelve el bloqueo anterior de localizar el instrumento municipal vigente, pero no resuelve por sí mismo derechos de transformación/redistribución de la cartografía incorporada o citada. Deben verificarse además los autores/fuentes de cada mapa relevante dentro del plan.
 
 ## S4 — CENEPRED, escenario Lima/Callao 2026
 
@@ -69,7 +90,7 @@ Manifiesto research-only:
 
 `docs/product/ruta-alta-sources/cenepred-lima-callao-2026.source.json`
 
-Hasta inspeccionar el ZIP, el manifiesto conserva deliberadamente:
+Hasta inspeccionar los bytes exactos del ZIP, el manifiesto conserva deliberadamente:
 
 - `geometry_type=UNKNOWN`;
 - `crs_original=UNKNOWN`;
@@ -78,15 +99,22 @@ Hasta inspeccionar el ZIP, el manifiesto conserva deliberadamente:
 
 Ninguno de esos campos debe completarse por inferencia.
 
+## Marco peruano de datos abiertos revisado
+
+El Decreto Supremo N.° 016-2017-PCM aprobó la Estrategia Nacional de Datos Abiertos Gubernamentales y el Modelo de Datos Abiertos Gubernamentales del Perú. El modelo define los datos abiertos como accesibles/utilizables, en formatos abiertos y bajo licencia abierta, y promueve su reutilización.
+
+Ese marco es relevante, pero Barrio 24 no asumirá que todo archivo alojado por una entidad pública queda automáticamente cubierto por una licencia abierta. Para cambiar un manifiesto a `verified-redistributable` se necesita una referencia que vincule de forma suficiente la fuente/dataset concreto con términos que permitan la transformación y redistribución offline pretendidas.
+
 ## Determinación provisional de licencia
 
-Resultado actual: **no hay base suficiente para cambiar S1/S4 a `verified-redistributable`**.
+Resultado actual: **no hay base suficiente para cambiar S1/S3/S4 a `verified-redistributable`**.
 
 Criterio aplicado:
 
 - descarga pública ≠ redistribución offline;
-- capacidad de compartir información ≠ autorización de transformar/vectorizar;
-- políticas generales de datos abiertos no se heredan automáticamente por cualquier PDF/ZIP alojado por una entidad pública.
+- capacidad de compartir/analizar información ≠ autorización inequívoca para transformar y volver a empaquetar;
+- políticas generales de datos abiertos no se heredan automáticamente por cualquier PDF/ZIP alojado por una entidad pública;
+- cuando una fuente agrega información de instituciones socias, debe respetarse también la atribución/titularidad de la capa concreta.
 
 Hasta encontrar términos específicos o autorización institucional suficiente, los manifiestos siguen fail-closed.
 
@@ -104,7 +132,7 @@ Para exigir elegibilidad de empaquetado se debe fijar una fecha determinística:
 ```bash
 node tools/ruta-alta/source-manifest.mjs \
   docs/product/ruta-alta-sources/dhn-la-punta-current.source.json \
-  --require-packaging --as-of=2026-08-24
+  --require-packaging --as-of=2026-09-19
 ```
 
 Código de salida `2` significa: manifiesto estructuralmente válido, pero bloqueado para empaquetado.
@@ -116,7 +144,7 @@ node tools/ruta-alta/source-catalog.mjs \
   docs/product/ruta-alta-source-catalog.json
 ```
 
-El catálogo verifica rutas normalizadas, IDs y el estado de cada fuente. Hoy el resultado esperado es `packagingEligible=false`.
+El catálogo verifica rutas normalizadas, IDs y el estado de cada fuente. Mientras no exista una licencia suficiente y bytes revisados, el resultado esperado es `packagingEligible=false`.
 
 ### 3. Preparar una descarga de investigación
 
@@ -163,18 +191,17 @@ El inspector valida, entre otros:
 
 No extrae el ZIP al filesystem.
 
-## Puertas de datos antes de abrir Fase 5
+## Puertas de datos antes de empaquetar/publicar Ruta Alta
 
 - [ ] Resolver términos de transformación y redistribución offline para cada fuente incluida.
 - [ ] Descargar y auditar los bytes exactos de las fuentes candidatas.
 - [ ] Fijar SHA-256 y `content_file` reproducibles.
-- [ ] Resolver `source_published_at`, `source_valid_at` y `review_due_at`.
+- [ ] Resolver `source_published_at`, `source_valid_at` y `review_due_at` donde falten.
 - [ ] Auditar el ZIP SHAPE 2026: conjuntos, CRS, tipos geométricos, atributos y tamaño.
-- [ ] Localizar y verificar el PPRRD vigente de La Punta o retirar S3.
-- [ ] Contrastar rutas/refugios con documentación municipal/INDECI vigente.
+- [x] Localizar y verificar el PPRRD vigente de La Punta 2026–2030.
+- [ ] Contrastar rutas/refugios con el PPRRD municipal vigente y documentación oficial aplicable.
 - [ ] Realizar revisión humana antes de presentar cualquier ruta o refugio como oficial.
-- [ ] Cerrar los bloqueadores P0 de Fase 4 antes de implementar mapas/rutas en el producto.
 
 ## Decisión vigente
 
-**La Punta continúa únicamente como candidato de investigación. Fase 5 no está abierta para implementación de rutas o mapas públicos.**
+**La Punta continúa como candidato de Fase 5. La investigación y tooling pueden avanzar, pero el empaquetado/publicación de mapas y rutas permanece bloqueado hasta que al menos una fuente cumpla `packagingEligible=true`.**
