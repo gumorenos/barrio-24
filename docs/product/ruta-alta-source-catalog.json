@@ -5,6 +5,7 @@
   "country_code": "PE",
   "source_manifests": [
     "ruta-alta-sources/dhn-la-punta-current.source.json",
-    "ruta-alta-sources/cenepred-lima-callao-2026.source.json"
+    "ruta-alta-sources/cenepred-lima-callao-2026.source.json",
+    "ruta-alta-sources/mdlp-pprrd-la-punta-2026-2030.source.json"
   ]
 }
