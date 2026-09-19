@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_id": "mdlp-pprrd-la-punta-2026-2030",
+  "source_authority": "Municipalidad Distrital de La Punta",
+  "source_title": "Plan de Prevención y Reducción del Riesgo de Desastres ante el peligro de sismo seguido de tsunami del distrito La Punta 2026-2030",
+  "source_url": "https://www.gob.pe/institucion/munilapunta/normas-legales/8260750",
+  "content_file": null,
+  "source_published_at": "2026-06-11",
+  "source_checked_at": "2026-09-19",
+  "source_valid_at": "2026-06-11",
+  "review_due_at": null,
+  "license_status": "unknown",
+  "license_reference": null,
+  "license_scope": [
+    "download"
+  ],
+  "crs_original": "UNKNOWN",
+  "geometry_type": "PDF",
+  "content_hash": null,
+  "package_version": "2026.09.1",
+  "review_status": "research",
+  "reviewed_by": null
+}
